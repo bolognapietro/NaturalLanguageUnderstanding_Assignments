@@ -1,0 +1,8 @@
+Parameters:
+
+epochs = 43
+hid_layers = 200
+emb_layers = 300
+clip = 5 
+
+Best ppl = 125.06334907547057
