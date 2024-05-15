@@ -103,26 +103,31 @@ class IntentsAndSlots (data.Dataset):
         res_utt = []
         res_slot = []
 
-        index = 0
+        seq_index = 0
         for seq in data_utt:
             tmp_seq_utt = []
             tmp_seq_slot = []
+            word_index = 0
 
             for x in seq.split():
+                # Tokenize the word
                 token = tokenizer.tokenize(x)   # what
                 token_id = tokenizer.convert_tokens_to_ids(token)   # 2054 or [2014, 1452]
-                tmp_seq.extend(token_id)    # [..., 2054, ...]
+                tmp_seq_utt.extend(token_id)    # [..., 2054, ...]
+                
+                # Map the slot
+                if len(token) == 1:
+                    tmp_seq_slot.append(mapper[data_slot[seq_index].split()[word_index]])
+                else:
+                    tmp_seq_slot.append(mapper[data_slot[seq_index].split()[word_index]])
+                    for _ in range(1, len(token)):
+                        tmp_seq_slot.append(mapper['pad'])
 
-                if (len(token_id) > 1):
-                    
-            res_utt.append(tmp_seq)
-            index += 1
+                word_index += 1
 
-        for seq in data_slot:
-            tmp_seq = []
-            for x in seq.split():
-                tmp_seq.append(mapper[x])
-            res_slot.append(tmp_seq)
+            res_utt.append(tmp_seq_utt)
+            res_slot.append(tmp_seq_slot)
+            seq_index += 1
 
         return res_utt, res_slot
 
