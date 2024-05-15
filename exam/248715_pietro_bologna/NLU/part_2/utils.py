@@ -49,20 +49,26 @@ class Lang():
 
 class IntentsAndSlots (data.Dataset):
     # Mandatory methods are __init__, __len__ and __getitem__
-    def __init__(self, dataset, lang, unk='unk'):
+    def __init__(self, dataset, lang, tokenizer, unk='unk'):
         self.utterances = []
         self.intents = []
         self.slots = []
         self.unk = unk
         
         for x in dataset:
-            self.utterances.append(x['utterance'])
-            self.slots.append(x['slots'])
+            self.utterances.append('[CLS] ' + x['utterance'] + ' [SEP]')
+            self.slots.append('O ' + x['slots'] + ' O')
             self.intents.append(x['intent'])
 
-        self.utt_ids = self.mapping_seq(self.utterances, lang.word2id)
-        self.slot_ids = self.mapping_seq(self.slots, lang.slot2id)
+        #! Original version
+        # self.utt_ids = self.mapping_seq(self.utterances, lang.word2id)
+        # self.slot_ids = self.mapping_seq(self.slots, lang.slot2id)
+        # self.intent_ids = self.mapping_lab(self.intents, lang.intent2id)
+        #! BERT version (2.1)
+        self.tokenizer = tokenizer
+        self.utt_ids, self.slot_ids = self.mapping_seq(self.utterances, self.slots, self.tokenizer, lang.slot2id)
         self.intent_ids = self.mapping_lab(self.intents, lang.intent2id)
+
 
     def __len__(self):
         return len(self.utterances)
@@ -75,22 +81,50 @@ class IntentsAndSlots (data.Dataset):
         return sample
     
     # Auxiliary methods
-    
     def mapping_lab(self, data, mapper):
         return [mapper[x] if x in mapper else mapper[self.unk] for x in data]
     
-    def mapping_seq(self, data, mapper): # Map sequences to number
-        res = []
-        for seq in data:
+    #! Original version
+    # def mapping_seq(self, data, mapper): # Map sequences to number
+    #     res = []
+    #     for seq in data:
+    #         tmp_seq = []
+    #         for x in seq.split():
+    #             if x in mapper:
+    #                 tmp_seq.append(mapper[x])
+    #             else:
+    #                 tmp_seq.append(mapper[self.unk])
+    #         res.append(tmp_seq)
+    #     return res
+    
+    #! BERT version
+    def mapping_seq(self, data_utt, data_slot, tokenizer, mapper): # Map sequences to number 
+        
+        res_utt = []
+        res_slot = []
+
+        index = 0
+        for seq in data_utt:
+            tmp_seq_utt = []
+            tmp_seq_slot = []
+
+            for x in seq.split():
+                token = tokenizer.tokenize(x)   # what
+                token_id = tokenizer.convert_tokens_to_ids(token)   # 2054 or [2014, 1452]
+                tmp_seq.extend(token_id)    # [..., 2054, ...]
+
+                if (len(token_id) > 1):
+                    
+            res_utt.append(tmp_seq)
+            index += 1
+
+        for seq in data_slot:
             tmp_seq = []
             for x in seq.split():
-                if x in mapper:
-                    tmp_seq.append(mapper[x])
-                else:
-                    tmp_seq.append(mapper[self.unk])
-            res.append(tmp_seq)
-        return res
+                tmp_seq.append(mapper[x])
+            res_slot.append(tmp_seq)
 
+        return res_utt, res_slot
 
 
 

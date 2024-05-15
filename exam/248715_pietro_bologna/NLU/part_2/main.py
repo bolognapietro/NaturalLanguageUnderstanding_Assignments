@@ -5,12 +5,13 @@
 from functions import *
 from utils import *
 from model import *
-import os
+
 import numpy as np
 from sklearn.model_selection import train_test_split
 from collections import Counter
 import torch.optim as optim
-import matplotlib.pyplot as plt
+from transformers import BertTokenizer, BertModel
+from pprint import pprint
 
 PAD_TOKEN = 0
 
@@ -70,13 +71,14 @@ if __name__ == "__main__":
     slots = set(sum([line['slots'].split() for line in corpus],[]))
     intents = set([line['intent'] for line in corpus])
 
+    #! Use the BERT tokenizer (2.1) 
+    tokenizer = BertTokenizer.from_pretrained("bert-base-uncased") # Download the tokenizer    
     lang = Lang(words, intents, slots, cutoff=0)
 
-
     # Create our datasets
-    train_dataset = IntentsAndSlots(train_raw, lang)
-    dev_dataset = IntentsAndSlots(dev_raw, lang)
-    test_dataset = IntentsAndSlots(test_raw, lang)
+    train_dataset = IntentsAndSlots(train_raw, lang, tokenizer)
+    dev_dataset = IntentsAndSlots(dev_raw, lang, tokenizer)
+    test_dataset = IntentsAndSlots(test_raw, lang, tokenizer)
 
     # Dataloader instantiations
     train_loader = DataLoader(train_dataset, batch_size=128, collate_fn=collate_fn,  shuffle=True)
@@ -84,7 +86,7 @@ if __name__ == "__main__":
     test_loader = DataLoader(test_dataset, batch_size=64, collate_fn=collate_fn)
 
 
-    hid_size = 200
+    hid_size = 768
     emb_size = 300
 
     lr = 0.0001 # learning rate
@@ -94,7 +96,8 @@ if __name__ == "__main__":
     out_int = len(lang.intent2id)
     vocab_len = len(lang.word2id)
 
-    model = ModelIAS_Bidirectional(hid_size, out_slot, out_int, emb_size, vocab_len, pad_index=PAD_TOKEN).to(device)
+    # model = ModelIAS_Bidirectional(hid_size, out_slot, out_int, emb_size, vocab_len, pad_index=PAD_TOKEN).to(device)
+    model = ModelBERT(hid_size, out_slot, out_int).to(device)
     model.apply(init_weights)
 
     optimizer = optim.Adam(model.parameters(), lr=lr)
@@ -102,6 +105,7 @@ if __name__ == "__main__":
     criterion_intents = nn.CrossEntropyLoss() # Because we do not have the pad token
    
     from tqdm import tqdm
+    
     #! SINGLE RUN
     n_epochs = 20
     patience = 3

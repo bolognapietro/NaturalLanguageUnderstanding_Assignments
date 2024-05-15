@@ -1,6 +1,8 @@
 import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
+from transformers import BertPreTrainedModel, BertModel, BertConfig
+
 class ModelIAS(nn.Module):
 
     def __init__(self, hid_size, out_slot, out_int, emb_size, vocab_len, n_layer=1, pad_index=0):
@@ -97,5 +99,36 @@ class ModelIAS_Bidirectional(nn.Module):
 
         # Slot size: batch_size, seq_len, classes
         slots = slots.permute(0,2,1) # We need this for computing the loss
+        # Slot size: batch_size, classes, seq_len
+        return slots, intent
+    
+class ModelBERT(BertPreTrainedModel):
+
+    def __init__(self, hid_size, out_slot, out_int):
+        super(ModelBERT, self).__init__(BertConfig())
+        # hid_size = Hidden size
+        # out_slot = number of slots (output size for slot filling)
+        # out_int = number of intents (output size for intent class)
+        # emb_size = word embedding size
+        
+        self.bert = BertModel.from_pretrained('bert-base-uncased')
+
+        self.slot_out = nn.Linear(hid_size, out_slot)
+        self.intent_out = nn.Linear(hid_size, out_int)
+        
+    def forward(self, utterance, seq_lengths):
+        # utterance.size() = batch_size X seq_len
+        
+        # Get BERT embeddings
+        bert_emb = self.bert(utterance)[0] # bert_emb.size() = batch_size X seq_len X hid_size
+        
+        # Compute slot logits
+        slots = self.slot_out(bert_emb)
+        # Compute intent logits
+        intent = self.intent_out(bert_emb[:, 0, :]) # Use the first token's representation
+        
+        # Slot size: batch_size, seq_len, classes 
+        slots = slots.permute(0, 2, 1) # We need this for computing the loss
+
         # Slot size: batch_size, classes, seq_len
         return slots, intent
