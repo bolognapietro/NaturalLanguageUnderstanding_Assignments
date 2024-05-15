@@ -1,44 +1,17 @@
-#-----------------------#
-
-    # Experiment also with a smaller or bigger model by changing hid and emb sizes
-    # A large model tends to overfit
-    hid_size = 300 #200
-    emb_size = 300
-
-    # Don't forget to experiment with a lower training batch size
-    # Increasing the back propagation steps can be seen as a regularization step
-
-    # With SGD try with an higher learning rate (> 1 for instance)
-    lr = 2 #0.0001 # This is definitely not good for SGD
-    clip = 5 # Clip the gradient
-    device = 'cuda:0'
-
-    vocab_len = len(lang.word2id)
-
-    #model = LM_RNN(emb_size, hid_size, vocab_len, pad_index=lang.word2id["<pad>"]).to(device)
-
-    model = LM_LSTM(emb_size, hid_size, vocab_len, pad_index=lang.word2id["<pad>"]).to(device)
-    model.apply(init_weights)
-
-    optimizer = optim.SGD(model.parameters(), lr=lr) #implement the new class NTASGD - non-monotonic adaptive SGD
-    criterion_train = nn.CrossEntropyLoss(ignore_index=lang.word2id["<pad>"])
-    criterion_eval = nn.CrossEntropyLoss(ignore_index=lang.word2id["<pad>"], reduction='sum')
-
-    #-----------------------#
 
     n_epochs = 100
     patience = 3 #prevent overfitting and save computational power
     losses_train = []
     losses_dev = []
-    ppl_train_array = []
-    ppl_dev_array = []
     sampled_epochs = []
+    best_ppl = math.inf
+    best_model = None
     cut_epochs = []
     pbar = tqdm(range(1,n_epochs))
 
-    best_ppl = math.inf
-    best_model = None
-    
+    ppl_train_array = []
+    ppl_dev_array = []
+
     weights_update = {}
     best_weights = {}
     switch_optimizer = False
