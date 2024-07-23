@@ -1,15 +1,15 @@
 from functions import *
 from utils import *
-from model import *
-import spacy
-import numpy as np
-from scipy.spatial.distance import cosine
+from model import LSTM_RNN_DROP
+
 import torch
 import torch.optim as optim
-import matplotlib.pyplot as plt
+from torch.utils.data import DataLoader
+
 from tqdm import tqdm
 import copy
 import math
+import numpy as np
 
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu' 
 
