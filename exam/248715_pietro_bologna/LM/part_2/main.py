@@ -15,8 +15,8 @@ from functools import partial
 
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu' 
 
-HID_SIZE = 500
-EMB_SIZE = 500
+HID_SIZE = 600
+EMB_SIZE = 600
 N_EPOCHS = 100
 NON_MONO = 3
 
