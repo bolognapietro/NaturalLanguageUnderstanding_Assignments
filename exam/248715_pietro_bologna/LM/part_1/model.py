@@ -1,11 +1,6 @@
-import torch
 import torch.nn as nn
-import torch.optim as optim
 import torch.nn.functional as F
-import math
 import numpy as np
-import torch.distributions.bernoulli as brn
-from utils import VariationalDropout
 
 class RNN_cell(nn.Module):
     def __init__(self,  hidden_size, input_size, output_size, vocab_size, dropout=0.1):

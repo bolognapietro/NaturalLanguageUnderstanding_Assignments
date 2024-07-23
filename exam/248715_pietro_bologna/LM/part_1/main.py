@@ -73,6 +73,10 @@ def main():
     criterion_train = nn.CrossEntropyLoss(ignore_index=lang.word2id["<pad>"])
     criterion_eval = nn.CrossEntropyLoss(ignore_index=lang.word2id["<pad>"], reduction='sum')
 
+    # Configuration
+    print(f'Configuration: \nMODEL={model.__class__.__name__}, \nOPTIMIZER={optimizer.__class__.__name__}, \nLR={SGD_LR if SGD else ADAM_LR}, \nDROP={DROP}')
+
+    # Training
     patience = 3
     losses_train = []
     losses_dev = []
