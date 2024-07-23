@@ -10,6 +10,7 @@ from tqdm import tqdm
 import copy
 import math
 import numpy as np
+import os
 
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu' 
 
@@ -36,9 +37,9 @@ TEST_BATCH_SIZE = 64
 
 def main():
     # Load the dataset
-    train_raw = read_file("dataset/PennTreeBank/ptb.train.txt")
-    dev_raw = read_file("dataset/PennTreeBank/ptb.valid.txt")
-    test_raw = read_file("dataset/PennTreeBank/ptb.test.txt")
+    train_raw = read_file(os.path.join('dataset','PennTreeBank','ptb.train.txt'))
+    dev_raw = read_file(os.path.join('dataset','PennTreeBank','ptb.valid.txt'))
+    test_raw = read_file(os.path.join('dataset','PennTreeBank','ptb.test.txt'))
 
     # Create the vocabulary
     vocab = get_vocab(train_raw, ["<pad>", "<eos>"])
@@ -64,7 +65,7 @@ def main():
 
     if ADAM:
         lr = ADAM_LR
-        optimizer = optim.Adam(model.parameters(), lr=lr)
+        optimizer = optim.AdamW(model.parameters(), lr=lr)
     else:
         lr = SGD_LR
         optimizer = optim.SGD(model.parameters(), lr=lr)
@@ -86,13 +87,13 @@ def main():
     array_loss_dev = []
 
     for epoch in pbar:
-        ppl_train, loss_train = train_loop(train_loader, optimizer, criterion_train, model, clip) #
-        array_ppl_train.append(ppl_train) #
-        array_loss_train.append(loss_train) #
+        ppl_train, loss_train = train_loop(train_loader, optimizer, criterion_train, model, clip)
+        array_ppl_train.append(ppl_train)
+        array_loss_train.append(loss_train)
 
         if epoch % 1 == 0:
-            sampled_epochs.append(epoch) #
-            losses_train.append(np.asarray(loss_train).mean()) #
+            sampled_epochs.append(epoch)
+            losses_train.append(np.asarray(loss_train).mean())
 
             # If the model is using ASGD, we need to update the learning rate
             if 't0' in optimizer.param_groups[0] and ASGD:

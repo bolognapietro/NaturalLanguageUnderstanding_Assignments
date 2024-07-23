@@ -1,12 +1,11 @@
 from functions import *
 from utils import *
 from model import *
-import spacy
-import numpy as np
-from scipy.spatial.distance import cosine
+
 import torch
 import torch.optim as optim
-import matplotlib.pyplot as plt
+
+import numpy as np
 from tqdm import tqdm
 import copy
 import math
@@ -33,9 +32,9 @@ TEST_BATCH_SIZE = 64
 
 def main():
     # Load the dataset
-    train_raw = read_file("dataset/PennTreeBank/ptb.train.txt")
-    dev_raw = read_file("dataset/PennTreeBank/ptb.valid.txt")
-    test_raw = read_file("dataset/PennTreeBank/ptb.test.txt")
+    train_raw = read_file(os.path.join('dataset','PennTreeBank','ptb.train.txt'))
+    dev_raw = read_file(os.path.join('dataset','PennTreeBank','ptb.valid.txt'))
+    test_raw = read_file(os.path.join('dataset','PennTreeBank','ptb.test.txt'))
 
     # Create the vocabulary
     vocab = get_vocab(train_raw, ["<pad>", "<eos>"])
@@ -63,7 +62,7 @@ def main():
         model = LSTM_RNN(EMB_SIZE, HID_SIZE, vocab_len, pad_index=lang.word2id["<pad>"]).to(device)
 
     if ADAM:
-        optimizer = optim.Adam(model.parameters(), lr=ADAM_LR)
+        optimizer = optim.AdamW(model.parameters(), lr=ADAM_LR)
     else:
         optimizer = optim.SGD(model.parameters(), lr=SGD_LR)
 
@@ -74,7 +73,7 @@ def main():
     criterion_eval = nn.CrossEntropyLoss(ignore_index=lang.word2id["<pad>"], reduction='sum')
 
     # Configuration
-    print(f'Configuration: \nMODEL={model.__class__.__name__}, \nOPTIMIZER={optimizer.__class__.__name__}, \nLR={SGD_LR if SGD else ADAM_LR}, \nDROP={DROP}')
+    print(f'Configuration: \n\tmodel={model.__class__.__name__}, \n\toptimizer={optimizer.__class__.__name__}, \n\tlr={SGD_LR if SGD else ADAM_LR}, \n\tdrop={DROP}\n')
 
     # Training
     patience = 3
