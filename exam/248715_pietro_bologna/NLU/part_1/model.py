@@ -1,106 +1,134 @@
-import torch
 import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
-import math
-import numpy as np
-import torch.distributions.bernoulli as brn
-from utils import VariationalDropout
+from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
-# RNN Elman version
-# We are not going to use this since for efficiently purposes it's better to use the RNN layer provided by pytorch  
-class RNN_cell(nn.Module):
-    def __init__(self,  hidden_size, input_size, output_size, vocab_size, dropout=0.1):
-        super(RNN_cell, self).__init__()
+from transformers import BertPreTrainedModel, BertModel, BertConfig
+
+class ModelIAS(nn.Module):
+
+    def __init__(self, hid_size, out_slot, out_int, emb_size, vocab_len, n_layer=1, pad_index=0):
+        super(ModelIAS, self).__init__()
+        # hid_size = Hidden size
+        # out_slot = number of slots (output size for slot filling)
+        # out_int = number of intents (output size for intent class)
+        # emb_size = word embedding size
         
-        self.W = nn.Linear(input_size, hidden_size, bias=False)
-        self.U = nn.Linear(hidden_size, hidden_size)
-        self.V = nn.Linear(hidden_size, vocab_size)
-        self.vocab_size = vocab_size
-        self.sigmoid = nn.Sigmoid()
+        self.embedding = nn.Embedding(vocab_len, emb_size, padding_idx=pad_index)
+        
+        self.utt_encoder = nn.LSTM(emb_size, hid_size, n_layer, bidirectional=False, batch_first=True)    
+        self.slot_out = nn.Linear(hid_size, out_slot)
+        self.intent_out = nn.Linear(hid_size, out_int)
+        # Dropout layer How/Where do we apply it?
+        self.dropout = nn.Dropout(0.1)
+        
+    def forward(self, utterance, seq_lengths):
+        # utterance.size() = batch_size X seq_len
+        utt_emb = self.embedding(utterance) # utt_emb.size() = batch_size X seq_len X emb_size
+        
+        # pack_padded_sequence avoid computation over pad tokens reducing the computational cost
+        
+        packed_input = pack_padded_sequence(utt_emb, seq_lengths.cpu().numpy(), batch_first=True)
+        # Process the batch
+        packed_output, (last_hidden, cell) = self.utt_encoder(packed_input) 
+       
+        # Unpack the sequence
+        utt_encoded, input_sizes = pad_packed_sequence(packed_output, batch_first=True)
+        # Get the last hidden state
+        last_hidden = last_hidden[-1,:,:]
+        
+        # Is this another possible way to get the last hiddent state? (Why?)
+        # utt_encoded.permute(1,0,2)[-1]
+        
+        # Compute slot logits
+        slots = self.slot_out(utt_encoded)
+        # Compute intent logits
+        intent = self.intent_out(last_hidden)
+        
+        # Slot size: batch_size, seq_len, classes 
+        slots = slots.permute(0,2,1) # We need this for computing the loss
+        # Slot size: batch_size, classes, seq_len
+        return slots, intent
     
-    def forward(self, prev_hidden, word):
-        input_emb = self.W(word)
-        prev_hidden_rep = self.U(prev_hidden)
-        # ht = σ(Wx + Uht-1 + b)
-        hidden_state = self.sigmoid(input_emb + prev_hidden_rep)
-        # yt = σ(Vht + b)
-        output = self.output(hidden_state)
-        return hidden_state, output
+#! Adding bidirectionality and dropout layer (1.1 and 1.2)
+class ModelIAS_Bidirectional(nn.Module):
+
+    def __init__(self, hid_size, out_slot, out_int, emb_size, vocab_len, n_layer=1, pad_index=0):
+        super(ModelIAS_Bidirectional, self).__init__()
+        # hid_size = Hidden size
+        # out_slot = number of slots (output size for slot filling)
+        # out_int = number of intents (output size for intent class)
+        # emb_size = word embedding size
+
+        self.embedding = nn.Embedding(vocab_len, emb_size, padding_idx=pad_index)
+
+        #! Set bidirection = true (1.1)
+        self.utt_encoder = nn.LSTM(emb_size, hid_size, n_layer, bidirectional=True, batch_first=True)
+        
+
+        #! Output size doubled due to bidirectionality (1.1)
+        self.slot_out = nn.Linear(hid_size*2, out_slot)
+        self.intent_out = nn.Linear(hid_size, out_int)
+
+        # Dropout layer How/Where do we apply it?
+        self.dropout = nn.Dropout(0.1)
+
+    def forward(self, utterance, seq_lengths):
+        # utterance.size() = batch_size X seq_len
+        utt_emb = self.embedding(utterance) # utt_emb.size() = batch_size X seq_len X emb_size
+
+        # pack_padded_sequence avoid computation over pad tokens reducing the computational cost
+
+        packed_input = pack_padded_sequence(utt_emb, seq_lengths.cpu().numpy(), batch_first=True)
+        # Process the batch
+        packed_output, (last_hidden, cell) = self.utt_encoder(packed_input)
+
+        # Unpack the sequence
+        utt_encoded, input_sizes = pad_packed_sequence(packed_output, batch_first=True)
+        # Get the last hidden state
+        last_hidden = last_hidden[-1,:,:]
+
+        #! Apply dropout (1.2)
+        utt_encoded = self.dropout(utt_encoded)
+
+        # Is this another possible way to get the last hiddent state? (Why?)
+        # utt_encoded.permute(1,0,2)[-1]
+
+        # Compute slot logits
+        slots = self.slot_out(utt_encoded)
+        # Compute intent logits
+        intent = self.intent_out(last_hidden)
+
+        # Slot size: batch_size, seq_len, classes
+        slots = slots.permute(0,2,1) # We need this for computing the loss
+        # Slot size: batch_size, classes, seq_len
+        return slots, intent
     
-class LM_RNN(nn.Module):
-    def __init__(self, emb_size, hidden_size, output_size, pad_index=0, out_dropout=0.1,
-                 emb_dropout=0.1, n_layers=1):
-        super(LM_RNN, self).__init__()
-        # Token ids to vectors, we will better see this in the next lab 
-        self.embedding = nn.Embedding(output_size, emb_size, padding_idx=pad_index)
-        # Pytorch's RNN layer: https://pytorch.org/docs/stable/generated/torch.nn.RNN.html
-        self.rnn = nn.RNN(emb_size, hidden_size, n_layers, bidirectional=False, batch_first=True)    
-        self.pad_token = pad_index
-        # Linear layer to project the hidden layer to our output space 
-        self.output = nn.Linear(hidden_size, output_size)
+class ModelBERT(BertPreTrainedModel):
+
+    def __init__(self, hid_size, out_slot, out_int):
+        super(ModelBERT, self).__init__(BertConfig())
+        # hid_size = Hidden size
+        # out_slot = number of slots (output size for slot filling)
+        # out_int = number of intents (output size for intent class)
+        # emb_size = word embedding size
         
-    def forward(self, input_sequence):
-        emb = self.embedding(input_sequence)
-        rnn_out, _  = self.rnn(emb)
-        output = self.output(rnn_out).permute(0,2,1)
-        return output 
+        self.bert = BertModel.from_pretrained('bert-base-uncased')
 
-#! Replace RNN with a Long-Short Term Memory (LSTM) network (1.1)
-class LSTM_RNN(nn.Module):
-    def __init__(self, emb_size, hidden_size, output_size, pad_index=0, out_dropout=0.1, emb_dropout=0.1, n_layers=1):
-        super(LSTM_RNN, self).__init__()
-        # Token ids to vectors, we will better see this in the next lab
-        self.embedding = nn.Embedding(output_size, emb_size, padding_idx=pad_index)
+        self.slot_out = nn.Linear(hid_size, out_slot)
+        self.intent_out = nn.Linear(hid_size, out_int)
         
-        # Pytorch's RNN layer: https://pytorch.org/docs/stable/generated/torch.nn.RNN.html
-        self.lstm = nn.LSTM(emb_size, hidden_size, n_layers, bidirectional=False, batch_first=True)
-        self.pad_token = pad_index
-
-        # Linear layer to project the hidden layer to our output space
-        self.output = nn.Linear(hidden_size, output_size)
-
-    def forward(self, input_sequence):
-        emb = self.embedding(input_sequence)
-        lstm_out, _  = self.lstm(emb)
-        output = self.output(lstm_out).permute(0,2,1)
-        return output
-    
-#! Replace RNN with a Long-Short Term Memory (LSTM) network (1.2)
-class LSTM_RNN_DROP(nn.Module):
-    def __init__(self, emb_size, hidden_size, output_size, pad_index=0, out_dropout=0.1, emb_dropout=0.1, n_layers=1):
-        super(LSTM_RNN_DROP, self).__init__()
-        # Token ids to vectors, we will better see this in the next lab
-        self.embedding = nn.Embedding(output_size, emb_size, padding_idx=pad_index)
+    def forward(self, utterance, seq_lengths):
+        # utterance.size() = batch_size X seq_len
         
-        # Add one dropout layer after the embedding layer
-        #! Normal dropout (1.2)
-        # self.emb_dropout = nn.Dropout()
-        #! Variational dropout (2.2)
-        self.emb_dropout = VariationalDropout(0.8)
-
-        # Pytorch's RNN layer: https://pytorch.org/docs/stable/generated/torch.nn.RNN.html
-        self.lstm = nn.LSTM(emb_size, hidden_size, n_layers, bidirectional=False, batch_first=True)
-        self.pad_token = pad_index
-
-        # Add one dropout layer before the last linear layer
-        #! Normal dropout (1.2)
-        # self.out_dropout = nn.Dropout()
-        #! Variational dropout (2.2)
-        self.out_dropout = VariationalDropout(0.5)
-
-        # Linear layer to project the hidden layer to our output space
-        self.output = nn.Linear(hidden_size, output_size)
-
-        #! Weight Tying (2.1) 
-        self.output.weight = self.embedding.weight
-
-    def forward(self, input_sequence):
-        emb = self.embedding(input_sequence)
-        drop1 = self.emb_dropout(emb)
-
-        lstm_out, _  = self.lstm(drop1)
-        drop2 = self.out_dropout(lstm_out)
+        # Get BERT embeddings
+        bert_emb = self.bert(utterance)[0] # bert_emb.size() = batch_size X seq_len X hid_size
         
-        output = self.output(drop2).permute(0,2,1)
-        return output
+        # Compute slot logits
+        slots = self.slot_out(bert_emb)
+        # Compute intent logits
+        intent = self.intent_out(bert_emb[:, 0, :]) # Use the first token's representation
+        
+        # Slot size: batch_size, seq_len, classes 
+        slots = slots.permute(0, 2, 1) # We need this for computing the loss
+
+        # Slot size: batch_size, classes, seq_len
+        return slots, intent
