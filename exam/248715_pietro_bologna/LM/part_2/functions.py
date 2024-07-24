@@ -13,8 +13,7 @@ def train_loop(data, optimizer, criterion, model, clip=5):
         loss = criterion(output, sample['target'])
         loss_array.append(loss.item() * sample["number_tokens"])
         number_of_tokens.append(sample["number_tokens"])
-        loss.backward() # Compute the gradient, deleting the computational graph
-        # clip the gradient to avoid explosioning gradients
+        loss.backward() 
         torch.nn.utils.clip_grad_norm_(model.parameters(), clip)  
         optimizer.step() # Update the weights
         
@@ -26,7 +25,7 @@ def eval_loop(data, eval_criterion, model):
     model.eval()
     loss_array = []
     number_of_tokens = []
-    # softmax = nn.Softmax(dim=1) # Use Softmax if you need the actual probability
+
     with torch.no_grad(): # It used to avoid the creation of computational graph
         for sample in data:
             output = model(sample['source'])
@@ -58,9 +57,3 @@ def init_weights(mat):
                 torch.nn.init.uniform_(m.weight, -0.01, 0.01)
                 if m.bias != None:
                     m.bias.data.fill_(0.01)
-
-#! Mancano:
-# create_next_test_folder
-# plot_line_graph
-# save_to_csv
-# save_results
