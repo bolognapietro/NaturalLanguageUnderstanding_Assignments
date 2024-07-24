@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 import torch.distributions.bernoulli as brn
 import torch.nn as nn
 
-device = 'cuda:0' if torch.cuda.is_available() else 'cpu' 
+DEVICE = 'cuda:0'
 
 # Loading the corpus 
 def read_file(path, eos_token="<eos>"):
@@ -115,7 +115,7 @@ def collate_fn(data, pad_token):
     source, _ = merge(new_item["source"])
     target, lengths = merge(new_item["target"])
     
-    new_item["source"] = source.to(device)
-    new_item["target"] = target.to(device)
+    new_item["source"] = source.to(DEVICE)
+    new_item["target"] = target.to(DEVICE)
     new_item["number_tokens"] = sum(lengths)
     return new_item

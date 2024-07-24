@@ -5,7 +5,7 @@ import math
     
 class VariationalDropout(nn.Module):
     def __init__(self, p=0.5):
-        super().__init__()
+        super(VariationalDropout, self).__init__()
         self.dropout = p
 
     def forward(self, input):

@@ -13,10 +13,10 @@ import numpy as np
 import os
 from functools import partial
 
-device = 'cuda:0' if torch.cuda.is_available() else 'cpu' 
+DEVICE = 'cuda:0'
 
-HID_SIZE = 600
-EMB_SIZE = 600
+HID_SIZE = 500
+EMB_SIZE = 500
 N_EPOCHS = 100
 NON_MONO = 3
 
@@ -38,9 +38,9 @@ TEST_BATCH_SIZE = 64
 
 def main():
     # Load the dataset
-    train_raw = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dataset", "PennTreeBank", "ptb.train.txt")
-    dev_raw = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dataset", "PennTreeBank", "ptb.valid.txt")
-    test_raw = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dataset", "PennTreeBank", "ptb.test.txt")
+    train_raw = read_file(os.path.join(os.path.dirname(os.path.abspath(__file__)), "dataset", "PennTreeBank", "ptb.train.txt"))
+    dev_raw = read_file(os.path.join(os.path.dirname(os.path.abspath(__file__)), "dataset", "PennTreeBank", "ptb.valid.txt"))
+    test_raw = read_file(os.path.join(os.path.dirname(os.path.abspath(__file__)), "dataset", "PennTreeBank", "ptb.test.txt"))
 
     # Create the vocabulary
     vocab = get_vocab(train_raw, ["<pad>", "<eos>"])
@@ -61,7 +61,7 @@ def main():
     # Model
     clip = 5
     vocab_len = len(lang.word2id)
-    model = LSTM_RNN_DROP(EMB_SIZE, HID_SIZE, vocab_len, pad_index=lang.word2id["<pad>"], weight_tying=WEIGH_TYING, variational_drop=VARIATIONA_DROP).to(device)
+    model = LSTM_RNN_DROP(EMB_SIZE, HID_SIZE, vocab_len, pad_index=lang.word2id["<pad>"], weight_tying=WEIGH_TYING, variational_drop=VARIATIONA_DROP).to(DEVICE)
     model.apply(init_weights)
 
     if ADAM:
@@ -115,7 +115,7 @@ def main():
 
                 string = "[SDG]"
 
-                if ASGD and SGD and 't0' not in optimizer.param_groups[0] and (len(array_loss_dev) > NON_MONO and loss_dev > min(array_loss_dev[:-NON_MONO])):
+                if ASGD and SGD and 't0' not in optimizer.param_groups[0]  and (len(array_loss_dev) > NON_MONO and loss_dev > min(array_loss_dev[:-NON_MONO])):
                     
                     # I switch to ASGD if the development loss has not improved over a defined number of epochs and if the loss of the current epoch is
                     # higher than the minimum loss from a specific number of previous epochs
@@ -139,7 +139,7 @@ def main():
             if patience <= 0: # Early stopping with patience
                 break # Not nice but it keeps the code clean
 
-    best_model.to(device)
+    best_model.to(DEVICE)
     final_ppl,  _ = eval_loop(test_loader, criterion_eval, best_model)
     
     array_loss_dev.append(final_ppl)
