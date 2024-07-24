@@ -20,13 +20,14 @@ def train_loop(data, optimizer, criterion, model, clip=5):
         
     ppl = math.exp(sum(loss_array) / sum(number_of_tokens))
     train_loss = sum(loss_array) / sum(number_of_tokens)
+
     return ppl, train_loss    
 
 def eval_loop(data, eval_criterion, model):
     model.eval()
     loss_array = []
     number_of_tokens = []
-    # softmax = nn.Softmax(dim=1) # Use Softmax if you need the actual probability
+
     with torch.no_grad(): # It used to avoid the creation of computational graph
         for sample in data:
             output = model(sample['source'])

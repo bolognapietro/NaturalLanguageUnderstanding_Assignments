@@ -9,6 +9,9 @@ device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
 # Loading the corpus 
 def read_file(path, eos_token="<eos>"):
+    """
+    Load the corpus from file
+    """
     output = []
     with open(path, "r") as f:
         for line in f.readlines():
@@ -17,6 +20,9 @@ def read_file(path, eos_token="<eos>"):
 
 # Vocab with tokens to ids
 def get_vocab(corpus, special_tokens=[]):
+    """
+    Build vocab with tokens to ids
+    """
     output = {}
     i = 0 
     for st in special_tokens:
@@ -29,8 +35,7 @@ def get_vocab(corpus, special_tokens=[]):
                 i += 1
     return output
 
-# This class computes and stores our vocab 
-# Word to ids and ids to word
+# This class computes and stores our vocab . Word to ids and ids to word
 class Lang():
     def __init__(self, corpus, special_tokens=[]):
         self.word2id = self.get_vocab(corpus, special_tokens)
@@ -58,7 +63,6 @@ class PennTreeBank (data.Dataset):
         for sentence in corpus:
             self.source.append(sentence.split()[0:-1]) # We get from the first token till the second-last token
             self.target.append(sentence.split()[1:]) # We get from the second token till the last token
-            # See example in section 6.2
         
         self.source_ids = self.mapping_seq(self.source, lang)
         self.target_ids = self.mapping_seq(self.target, lang)
@@ -73,7 +77,6 @@ class PennTreeBank (data.Dataset):
         return sample
     
     # Auxiliary methods
-    
     def mapping_seq(self, data, lang): # Map sequences of tokens to corresponding computed in Lang class
         res = []
         for seq in data:

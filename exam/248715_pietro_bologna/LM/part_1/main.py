@@ -7,6 +7,7 @@ import torch.optim as optim
 
 import numpy as np
 from tqdm import tqdm
+import os
 import copy
 import math
 
@@ -32,7 +33,7 @@ TEST_BATCH_SIZE = 64
 
 def main():
     # Load the dataset
-    train_raw = read_file(os.path.join('dataset','PennTreeBank','ptb.train.txt'))
+    train_raw = read_file(os.path.join(os.path.dirname(os.path.abspath(__file__)), "dataset", "PennTreeBank", "ptb.train.txt"))
     dev_raw = read_file(os.path.join('dataset','PennTreeBank','ptb.valid.txt'))
     test_raw = read_file(os.path.join('dataset','PennTreeBank','ptb.test.txt'))
 

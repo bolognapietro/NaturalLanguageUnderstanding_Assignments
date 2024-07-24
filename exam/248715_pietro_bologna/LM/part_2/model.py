@@ -49,10 +49,10 @@ class LSTM_RNN_DROP(nn.Module):
     def forward(self, input_sequence):
 
         emb = self.embedding(input_sequence)
-        emb = self.emb_dropout(emb)
+        drop1 = self.emb_dropout(emb)
 
-        lstm_out, _  = self.lstm(emb)
-        lstm_out = self.out_dropout(lstm_out)
+        lstm_out, _  = self.lstm(drop1)
+        drop2 = self.out_dropout(lstm_out)
 
-        output = self.output(lstm_out).permute(0,2,1)
+        output = self.output(drop2).permute(0,2,1)
         return output
