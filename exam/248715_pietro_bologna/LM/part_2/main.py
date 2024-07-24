@@ -38,9 +38,9 @@ TEST_BATCH_SIZE = 64
 
 def main():
     # Load the dataset
-    train_raw = read_file(os.path.join('dataset','PennTreeBank','ptb.train.txt'))
-    dev_raw = read_file(os.path.join('dataset','PennTreeBank','ptb.valid.txt'))
-    test_raw = read_file(os.path.join('dataset','PennTreeBank','ptb.test.txt'))
+    train_raw = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dataset", "PennTreeBank", "ptb.train.txt")
+    dev_raw = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dataset", "PennTreeBank", "ptb.valid.txt")
+    test_raw = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dataset", "PennTreeBank", "ptb.test.txt")
 
     # Create the vocabulary
     vocab = get_vocab(train_raw, ["<pad>", "<eos>"])
