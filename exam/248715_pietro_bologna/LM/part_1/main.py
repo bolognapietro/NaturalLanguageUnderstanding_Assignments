@@ -10,6 +10,7 @@ from tqdm import tqdm
 import os
 import copy
 import math
+import csv
 
 DEVICE = 'cuda:0' if torch.cuda.is_available() else 'cpu' 
 
@@ -34,8 +35,8 @@ TEST_BATCH_SIZE = 64
 def main():
     # Load the dataset
     train_raw = read_file(os.path.join(os.path.dirname(os.path.abspath(__file__)), "dataset", "PennTreeBank", "ptb.train.txt"))
-    dev_raw = read_file(os.path.join('dataset','PennTreeBank','ptb.valid.txt'))
-    test_raw = read_file(os.path.join('dataset','PennTreeBank','ptb.test.txt'))
+    dev_raw = read_file(os.path.join(os.path.dirname(os.path.abspath(__file__)), "dataset", "PennTreeBank", "ptb.valid.txt"))
+    test_raw = read_file(os.path.join(os.path.dirname(os.path.abspath(__file__)), "dataset", "PennTreeBank", "ptb.test.txt"))
 
     # Create the vocabulary
     vocab = get_vocab(train_raw, ["<pad>", "<eos>"])
@@ -74,7 +75,8 @@ def main():
     criterion_eval = nn.CrossEntropyLoss(ignore_index=lang.word2id["<pad>"], reduction='sum')
 
     # Configuration
-    print(f'Configuration: \n\tmodel={model.__class__.__name__}, \n\toptimizer={optimizer.__class__.__name__}, \n\tlr={SGD_LR if SGD else ADAM_LR}, \n\tdrop={DROP}\n')
+    config = f"Configuration: \n\tmodel={model.__class__.__name__}, \n\toptimizer={optimizer.__class__.__name__}, \n\tlr={SGD_LR if SGD else ADAM_LR}, \n\tdrop={DROP}\n" 
+    print(config)
 
     # Training
     patience = 3
@@ -117,6 +119,16 @@ def main():
     best_model.to(DEVICE)
     final_ppl,  _ = eval_loop(test_loader, criterion_eval, best_model)
     print('Test ppl: ', final_ppl)
+
+    # Save config and final_ppl to a CSV file
+    data = {'config': config, 'final_ppl': final_ppl}
+    csv_file = 'results.csv'
+
+    with open(csv_file, 'a', newline='') as file:
+        writer = csv.DictWriter(file, fieldnames=data.keys())
+        writer.writeheader()
+        writer.writerow(data)
+
 
 if __name__ == "__main__":
     main()

@@ -13,8 +13,8 @@ class JointBERT(nn.Module):
         self.slot_out = nn.Linear(hid_size, out_slot)
         self.intent_out = nn.Linear(hid_size, out_int)
         
-    def forward(self, utterance, attention = None, token_type_ids = None):
-        output = self.bert(utterance, attention_mask=attention, token_type_ids=token_type_ids)
+    def forward(self, utterance, attentions = None, token_type_ids = None):
+        output = self.bert(utterance, attention_mask=attentions, token_type_ids=token_type_ids)
 
         sequence_output = output[0]
         pooled_output = output[1]
