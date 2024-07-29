@@ -1,23 +1,24 @@
+import torch
 import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
-from transformers import BertPreTrainedModel, BertModel, BertConfig
-
 class ModelIAS(nn.Module):
-
-    def __init__(self, hid_size, out_slot, out_int, emb_size, vocab_len, n_layer=1, pad_index=0):
+    def __init__(self, hid_size, out_slot, out_int, emb_size, vocab_len, n_layer=1, pad_index=0, dropout=False, bidirectional=False):
         super(ModelIAS, self).__init__()
-        # hid_size = Hidden size
-        # out_slot = number of slots (output size for slot filling)
-        # out_int = number of intents (output size for intent class)
-        # emb_size = word embedding size
-        
+               
+        self.dropout = dropout
+        self.bidirectional = bidirectional
+
         self.embedding = nn.Embedding(vocab_len, emb_size, padding_idx=pad_index)
         
-        self.utt_encoder = nn.LSTM(emb_size, hid_size, n_layer, bidirectional=False, batch_first=True)    
+        self.utt_encoder = nn.LSTM(emb_size, hid_size, n_layer, bidirectional=bidirectional, batch_first=True)   
+
+        if self.bidirectional:
+            hid_size = hid_size*2       # birirectional LSTM has double the hidden size
+
         self.slot_out = nn.Linear(hid_size, out_slot)
         self.intent_out = nn.Linear(hid_size, out_int)
-        # Dropout layer How/Where do we apply it?
+    
         self.dropout = nn.Dropout(0.1)
         
     def forward(self, utterance, seq_lengths):
@@ -25,18 +26,23 @@ class ModelIAS(nn.Module):
         utt_emb = self.embedding(utterance) # utt_emb.size() = batch_size X seq_len X emb_size
         
         # pack_padded_sequence avoid computation over pad tokens reducing the computational cost
-        
         packed_input = pack_padded_sequence(utt_emb, seq_lengths.cpu().numpy(), batch_first=True)
         # Process the batch
         packed_output, (last_hidden, cell) = self.utt_encoder(packed_input) 
        
         # Unpack the sequence
-        utt_encoded, input_sizes = pad_packed_sequence(packed_output, batch_first=True)
-        # Get the last hidden state
-        last_hidden = last_hidden[-1,:,:]
+        utt_encoded, _ = pad_packed_sequence(packed_output, batch_first=True)
+
+        if self.bidirectional:
+            # if LSTM is bidirectional, hidden state at each step captures information from both the forward and backward directions.
+            last_hidden = torch.cat((last_hidden[-2,:,:], last_hidden[-1,:,:]), dim=1)
+        else:
+            # Get the last hidden state
+            last_hidden = last_hidden[-1,:,:]
         
-        # Is this another possible way to get the last hiddent state? (Why?)
-        # utt_encoded.permute(1,0,2)[-1]
+        if self.dropout:
+            utt_encoded = self.dropout(utt_encoded)
+            last_hidden = self.dropout(last_hidden)
         
         # Compute slot logits
         slots = self.slot_out(utt_encoded)
@@ -45,90 +51,5 @@ class ModelIAS(nn.Module):
         
         # Slot size: batch_size, seq_len, classes 
         slots = slots.permute(0,2,1) # We need this for computing the loss
-        # Slot size: batch_size, classes, seq_len
-        return slots, intent
-    
-#! Adding bidirectionality and dropout layer (1.1 and 1.2)
-class ModelIAS_Bidirectional(nn.Module):
 
-    def __init__(self, hid_size, out_slot, out_int, emb_size, vocab_len, n_layer=1, pad_index=0):
-        super(ModelIAS_Bidirectional, self).__init__()
-        # hid_size = Hidden size
-        # out_slot = number of slots (output size for slot filling)
-        # out_int = number of intents (output size for intent class)
-        # emb_size = word embedding size
-
-        self.embedding = nn.Embedding(vocab_len, emb_size, padding_idx=pad_index)
-
-        #! Set bidirection = true (1.1)
-        self.utt_encoder = nn.LSTM(emb_size, hid_size, n_layer, bidirectional=True, batch_first=True)
-        
-
-        #! Output size doubled due to bidirectionality (1.1)
-        self.slot_out = nn.Linear(hid_size*2, out_slot)
-        self.intent_out = nn.Linear(hid_size, out_int)
-
-        # Dropout layer How/Where do we apply it?
-        self.dropout = nn.Dropout(0.1)
-
-    def forward(self, utterance, seq_lengths):
-        # utterance.size() = batch_size X seq_len
-        utt_emb = self.embedding(utterance) # utt_emb.size() = batch_size X seq_len X emb_size
-
-        # pack_padded_sequence avoid computation over pad tokens reducing the computational cost
-
-        packed_input = pack_padded_sequence(utt_emb, seq_lengths.cpu().numpy(), batch_first=True)
-        # Process the batch
-        packed_output, (last_hidden, cell) = self.utt_encoder(packed_input)
-
-        # Unpack the sequence
-        utt_encoded, input_sizes = pad_packed_sequence(packed_output, batch_first=True)
-        # Get the last hidden state
-        last_hidden = last_hidden[-1,:,:]
-
-        #! Apply dropout (1.2)
-        utt_encoded = self.dropout(utt_encoded)
-
-        # Is this another possible way to get the last hiddent state? (Why?)
-        # utt_encoded.permute(1,0,2)[-1]
-
-        # Compute slot logits
-        slots = self.slot_out(utt_encoded)
-        # Compute intent logits
-        intent = self.intent_out(last_hidden)
-
-        # Slot size: batch_size, seq_len, classes
-        slots = slots.permute(0,2,1) # We need this for computing the loss
-        # Slot size: batch_size, classes, seq_len
-        return slots, intent
-    
-class ModelBERT(BertPreTrainedModel):
-
-    def __init__(self, hid_size, out_slot, out_int):
-        super(ModelBERT, self).__init__(BertConfig())
-        # hid_size = Hidden size
-        # out_slot = number of slots (output size for slot filling)
-        # out_int = number of intents (output size for intent class)
-        # emb_size = word embedding size
-        
-        self.bert = BertModel.from_pretrained('bert-base-uncased')
-
-        self.slot_out = nn.Linear(hid_size, out_slot)
-        self.intent_out = nn.Linear(hid_size, out_int)
-        
-    def forward(self, utterance, seq_lengths):
-        # utterance.size() = batch_size X seq_len
-        
-        # Get BERT embeddings
-        bert_emb = self.bert(utterance)[0] # bert_emb.size() = batch_size X seq_len X hid_size
-        
-        # Compute slot logits
-        slots = self.slot_out(bert_emb)
-        # Compute intent logits
-        intent = self.intent_out(bert_emb[:, 0, :]) # Use the first token's representation
-        
-        # Slot size: batch_size, seq_len, classes 
-        slots = slots.permute(0, 2, 1) # We need this for computing the loss
-
-        # Slot size: batch_size, classes, seq_len
         return slots, intent

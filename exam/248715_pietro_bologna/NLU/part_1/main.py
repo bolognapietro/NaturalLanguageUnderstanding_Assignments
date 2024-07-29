@@ -1,32 +1,36 @@
-# This file is used to run your functions and print the results
-# Please write your fuctions or classes in the functions.py
-
-# Import everything from functions.py file
 from functions import *
 from utils import *
-from model import *
+from model import ModelIAS
+
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader
 
 import numpy as np
 from sklearn.model_selection import train_test_split
 from collections import Counter
-import torch.optim as optim
-from transformers import BertTokenizer, BertModel
 from pprint import pprint
+from tqdm import tqdm
+
+DEVICE = 'cuda:0'
+
+HID_SIZE = 250
+EMB_SIZE = 300
+
+DROP = True
+BIDIRECTIONAL = True
 
 PAD_TOKEN = 0
 
-if __name__ == "__main__":
-    #Wrtite the code to load the datasets and to run your functions
-    # Print the results
-    tmp_train_raw = load_data("exam/248715_pietro_bologna/NLU/part_2/dataset/ATIS/train.json")
-    test_raw = load_data("exam/248715_pietro_bologna/NLU/part_2/dataset/ATIS/test.json")
-    print('Train samples:', len(tmp_train_raw))
-    print('Test samples:', len(test_raw))
+LR = 0.0001     # Learning rate
+clip = 5        # Clip the gradient
 
-    pprint(tmp_train_raw[0])
+# First we get the 10% of the training set, then we compute the percentage of these examples 
+portion = 0.10
 
-    # First we get the 10% of the training set, then we compute the percentage of these examples 
-    portion = 0.10
+def main():
+    tmp_train_raw = load_data(os.path.join(os.path.dirname(os.path.abspath(__file__)), "dataset", "ATIS", "train.json"))
+    test_raw = load_data(os.path.join(os.path.dirname(os.path.abspath(__file__)), "dataset", "ATIS", "test.json"))
 
     intents = [x['intent'] for x in tmp_train_raw] # We stratify on intents
     count_y = Counter(intents)
@@ -41,6 +45,7 @@ if __name__ == "__main__":
             labels.append(y)
         else:
             mini_train.append(tmp_train_raw[id_y])
+    
     # Random Stratify
     X_train, X_dev, y_train, y_dev = train_test_split(inputs, labels, test_size=portion, 
                                                         random_state=42, 
@@ -52,59 +57,35 @@ if __name__ == "__main__":
 
     y_test = [x['intent'] for x in test_raw]
 
-    # Intent distributions
-    print('Train:')
-    pprint({k:round(v/len(y_train),3)*100 for k, v in sorted(Counter(y_train).items())})
-    print('Dev:'), 
-    pprint({k:round(v/len(y_dev),3)*100 for k, v in sorted(Counter(y_dev).items())})
-    print('Test:') 
-    pprint({k:round(v/len(y_test),3)*100 for k, v in sorted(Counter(y_test).items())})
-    print('='*89)
-    # Dataset size
-    print('TRAIN size:', len(train_raw))
-    print('DEV size:', len(dev_raw))
-    print('TEST size:', len(test_raw))
-    words = sum([x['utterance'].split() for x in train_raw], []) # No set() since we want to compute 
-                                                            # the cutoff
-    corpus = train_raw + dev_raw + test_raw # We do not wat unk labels, 
-                                            # however this depends on the research purpose
+    words = sum([x['utterance'].split() for x in train_raw], []) 
+                                                            
+    corpus = train_raw + dev_raw + test_raw 
+    
     slots = set(sum([line['slots'].split() for line in corpus],[]))
     intents = set([line['intent'] for line in corpus])
 
-    #! Use the BERT tokenizer (2.1) 
-    tokenizer = BertTokenizer.from_pretrained("bert-base-uncased") # Download the tokenizer    
     lang = Lang(words, intents, slots, cutoff=0)
 
+    out_slot = len(lang.slot2id)
+    out_int = len(lang.intent2id)
+    vocab_len = len(lang.word2id)
+
+    model = ModelIAS(HID_SIZE, out_slot, out_int, EMB_SIZE, vocab_len, pad_index=PAD_TOKEN, dropout=DROP, bidirectional=BIDIRECTIONAL).to(DEVICE)
+    model.apply(init_weights)
+
     # Create our datasets
-    train_dataset = IntentsAndSlots(train_raw, lang, tokenizer)
-    dev_dataset = IntentsAndSlots(dev_raw, lang, tokenizer)
-    test_dataset = IntentsAndSlots(test_raw, lang, tokenizer)
+    train_dataset = IntentsAndSlots(train_raw, lang)
+    dev_dataset = IntentsAndSlots(dev_raw, lang)
+    test_dataset = IntentsAndSlots(test_raw, lang)
 
     # Dataloader instantiations
     train_loader = DataLoader(train_dataset, batch_size=128, collate_fn=collate_fn,  shuffle=True)
     dev_loader = DataLoader(dev_dataset, batch_size=64, collate_fn=collate_fn)
     test_loader = DataLoader(test_dataset, batch_size=64, collate_fn=collate_fn)
 
-
-    hid_size = 768
-    emb_size = 300
-
-    lr = 0.0001 # learning rate
-    clip = 5 # Clip the gradient
-
-    out_slot = len(lang.slot2id)
-    out_int = len(lang.intent2id)
-    vocab_len = len(lang.word2id)
-
-    # model = ModelIAS_Bidirectional(hid_size, out_slot, out_int, emb_size, vocab_len, pad_index=PAD_TOKEN).to(device)
-    model = ModelBERT(hid_size, out_slot, out_int).to(device)
-    model.apply(init_weights)
-
-    optimizer = optim.Adam(model.parameters(), lr=lr)
+    optimizer = optim.Adam(model.parameters(), lr=LR)
     criterion_slots = nn.CrossEntropyLoss(ignore_index=PAD_TOKEN)
     criterion_intents = nn.CrossEntropyLoss() # Because we do not have the pad token
-   
-    from tqdm import tqdm
     
     #! SINGLE RUN
     n_epochs = 20
@@ -113,84 +94,33 @@ if __name__ == "__main__":
     losses_dev = []
     sampled_epochs = []
     best_f1 = 0
+
     for x in tqdm(range(1,n_epochs)):
-        loss = train_loop(train_loader, optimizer, criterion_slots, 
-                        criterion_intents, model, clip=clip)
+        loss = train_loop(train_loader, optimizer, criterion_slots, criterion_intents, model, clip=clip)
+        
         if x % 5 == 0: # We check the performance every 5 epochs
             sampled_epochs.append(x)
             losses_train.append(np.asarray(loss).mean())
-            results_dev, intent_res, loss_dev = eval_loop(dev_loader, criterion_slots, 
-                                                        criterion_intents, model, lang)
+            results_dev, intent_res, loss_dev = eval_loop(dev_loader, criterion_slots, criterion_intents, model, lang)
             losses_dev.append(np.asarray(loss_dev).mean())
             
             f1 = results_dev['total']['f']
+
             # For decreasing the patience you can also use the average between slot f1 and intent accuracy
             if f1 > best_f1:
                 best_f1 = f1
-                # Here you should save the model
                 patience = 3
             else:
                 patience -= 1
+
             if patience <= 0: # Early stopping with patience
                 break # Not nice but it keeps the code clean
 
-    results_test, intent_test, _ = eval_loop(test_loader, criterion_slots, 
-                                            criterion_intents, model, lang)    
+    results_test, intent_test, _ = eval_loop(test_loader, criterion_slots, criterion_intents, model, lang)    
+
     print('Slot F1: ', results_test['total']['f'])
     print('Intent Accuracy:', intent_test['accuracy'])
 
-    #! MULTIPLE RUN
-    # hid_size = 200
-    # emb_size = 300
-    # lr = 0.0001 # learning rate
-    # clip = 5 # Clip the gradient
 
-    # out_slot = len(lang.slot2id)
-    # out_int = len(lang.intent2id)
-    # vocab_len = len(lang.word2id)
-
-    # n_epochs = 200
-    # runs = 5
-
-    # slot_f1s, intent_acc = [], []
-    # for x in tqdm(range(0, runs)):
-    #     model = ModelIAS(hid_size, out_slot, out_int, emb_size, 
-    #                     vocab_len, pad_index=PAD_TOKEN).to(device)
-    #     model.apply(init_weights)
-
-    #     optimizer = optim.Adam(model.parameters(), lr=lr)
-    #     criterion_slots = nn.CrossEntropyLoss(ignore_index=PAD_TOKEN)
-    #     criterion_intents = nn.CrossEntropyLoss()
-        
-
-    #     patience = 3
-    #     losses_train = []
-    #     losses_dev = []
-    #     sampled_epochs = []
-    #     best_f1 = 0
-    #     for x in range(1,n_epochs):
-    #         loss = train_loop(train_loader, optimizer, criterion_slots, 
-    #                         criterion_intents, model)
-    #         if x % 5 == 0:
-    #             sampled_epochs.append(x)
-    #             losses_train.append(np.asarray(loss).mean())
-    #             results_dev, intent_res, loss_dev = eval_loop(dev_loader, criterion_slots, 
-    #                                                         criterion_intents, model, lang)
-    #             losses_dev.append(np.asarray(loss_dev).mean())
-    #             f1 = results_dev['total']['f']
-
-    #             if f1 > best_f1:
-    #                 best_f1 = f1
-    #             else:
-    #                 patience -= 1
-    #             if patience <= 0: # Early stopping with patient
-    #                 break # Not nice but it keeps the code clean
-
-    #     results_test, intent_test, _ = eval_loop(test_loader, criterion_slots, 
-    #                                             criterion_intents, model, lang)
-    #     intent_acc.append(intent_test['accuracy'])
-    #     slot_f1s.append(results_test['total']['f'])
-    # slot_f1s = np.asarray(slot_f1s)
-    # intent_acc = np.asarray(intent_acc)
-    # print('Slot F1', round(slot_f1s.mean(),3), '+-', round(slot_f1s.std(),3))
-    # print('Intent Acc', round(intent_acc.mean(), 3), '+-', round(slot_f1s.std(), 3))
+if __name__ == "__main__":
+    main()

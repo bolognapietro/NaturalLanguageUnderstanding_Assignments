@@ -11,7 +11,7 @@ import os
 import copy
 import math
 
-device = 'cuda:0' if torch.cuda.is_available() else 'cpu' 
+DEVICE = 'cuda:0' if torch.cuda.is_available() else 'cpu' 
 
 HID_SIZE = 200
 EMB_SIZE = 200
@@ -58,9 +58,9 @@ def main():
     vocab_len = len(lang.word2id)
 
     if DROP:
-        model = LSTM_RNN_DROP(EMB_SIZE, HID_SIZE, vocab_len, pad_index=lang.word2id["<pad>"]).to(device)
+        model = LSTM_RNN_DROP(EMB_SIZE, HID_SIZE, vocab_len, pad_index=lang.word2id["<pad>"]).to(DEVICE)
     else:
-        model = LSTM_RNN(EMB_SIZE, HID_SIZE, vocab_len, pad_index=lang.word2id["<pad>"]).to(device)
+        model = LSTM_RNN(EMB_SIZE, HID_SIZE, vocab_len, pad_index=lang.word2id["<pad>"]).to(DEVICE)
 
     if ADAM:
         optimizer = optim.AdamW(model.parameters(), lr=ADAM_LR)
@@ -114,7 +114,7 @@ def main():
             if patience <= 0: # Early stopping with patience
                 break # Not nice but it keeps the code clean
 
-    best_model.to(device)
+    best_model.to(DEVICE)
     final_ppl,  _ = eval_loop(test_loader, criterion_eval, best_model)
     print('Test ppl: ', final_ppl)
 
