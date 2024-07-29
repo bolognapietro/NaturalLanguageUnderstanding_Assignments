@@ -1,6 +1,6 @@
 from functions import *
 from utils import *
-from model import LSTM_RNN_DROP
+from model import LSTM_RNN_DROP, LSTM_RNN
 
 import torch
 import torch.optim as optim
@@ -12,6 +12,7 @@ import math
 import numpy as np
 import os
 from functools import partial
+import csv
 
 DEVICE = 'cuda:0'
 
@@ -21,6 +22,7 @@ N_EPOCHS = 100
 NON_MONO = 3
 
 # Flags
+DROP = True
 SGD = True
 ADAM = False
 ASGD = True
@@ -61,7 +63,12 @@ def main():
     # Model
     clip = 5
     vocab_len = len(lang.word2id)
-    model = LSTM_RNN_DROP(EMB_SIZE, HID_SIZE, vocab_len, pad_index=lang.word2id["<pad>"], weight_tying=WEIGH_TYING, variational_drop=VARIATIONA_DROP).to(DEVICE)
+
+    if DROP:
+        model = LSTM_RNN_DROP(EMB_SIZE, HID_SIZE, vocab_len, pad_index=lang.word2id["<pad>"]).to(DEVICE)
+    else:
+        model = LSTM_RNN(EMB_SIZE, HID_SIZE, vocab_len, pad_index=lang.word2id["<pad>"]).to(DEVICE)
+
     model.apply(init_weights)
 
     if ADAM:
@@ -74,6 +81,9 @@ def main():
     # Loss
     criterion_train = nn.CrossEntropyLoss(ignore_index=lang.word2id["<pad>"])
     criterion_eval = nn.CrossEntropyLoss(ignore_index=lang.word2id["<pad>"], reduction='sum')
+
+    # Configuration 
+    print(f"Configuration: \n\tmodel={model.__class__.__name__}, \n\toptimizer={optimizer.__class__.__name__}, \n\tlr={SGD_LR if SGD else ADAM_LR}, \n\tdrop={DROP}, \n\tweight tying={WEIGH_TYING}, \n\tvariational drop={VARIATIONA_DROP}\n")
 
     patience = 3
     losses_train = []
@@ -146,6 +156,15 @@ def main():
     array_ppl_dev.append(final_ppl)
 
     print('Test ppl: ', final_ppl)
+
+    # Save config and final_ppl to a CSV file
+    data = {'model': model.__class__.__name__, 'optimizer': optimizer.__class__.__name__, 'lr': SGD_LR if SGD else ADAM_LR, 'drop': DROP, 'weight tying': WEIGH_TYING, 'variational drop': VARIATIONA_DROP, 'final_ppl': final_ppl}
+    csv_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results.csv")
+
+    with open(csv_file, 'a', newline='') as file:
+        writer = csv.DictWriter(file, fieldnames=data.keys())
+        writer.writeheader()
+        writer.writerow(data)
 
 if __name__ == "__main__":
     main()

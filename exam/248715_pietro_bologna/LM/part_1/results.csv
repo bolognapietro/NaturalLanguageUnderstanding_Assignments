@@ -1,0 +1,8 @@
+model,optimizer,lr,drop,final_ppl
+LSTM_RNN,SGD,5,False,137.03507339836523
+model,optimizer,lr,drop,final_ppl
+LSTM_RNN_DROP,SGD,5,True,129.6607768055508
+model,optimizer,lr,drop,final_ppl
+LSTM_RNN_DROP,AdamW,0.001,True,119.89375332292133
+model,optimizer,lr,drop,final_ppl
+LSTM_RNN_DROP,SGD,5,True,130.19283779833606

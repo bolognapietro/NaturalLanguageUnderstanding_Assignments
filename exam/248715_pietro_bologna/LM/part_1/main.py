@@ -14,8 +14,8 @@ import csv
 
 DEVICE = 'cuda:0' if torch.cuda.is_available() else 'cpu' 
 
-HID_SIZE = 200
-EMB_SIZE = 200
+HID_SIZE = 300
+EMB_SIZE = 300
 N_EPOCHS = 100
 
 # Flags
@@ -24,7 +24,7 @@ SGD = True
 ADAM = False
 
 # Hyperparameters
-SGD_LR = 1.5
+SGD_LR = 5
 ADAM_LR = 0.001
 
 # Batch sizes
@@ -55,7 +55,7 @@ def main():
     test_loader = DataLoader(test_dataset, batch_size=TEST_BATCH_SIZE, collate_fn=partial(collate_fn, pad_token=lang.word2id["<pad>"]))
 
     # Model
-    clip = 5
+    clip = 10
     vocab_len = len(lang.word2id)
 
     if DROP:
@@ -74,9 +74,8 @@ def main():
     criterion_train = nn.CrossEntropyLoss(ignore_index=lang.word2id["<pad>"])
     criterion_eval = nn.CrossEntropyLoss(ignore_index=lang.word2id["<pad>"], reduction='sum')
 
-    # Configuration
-    config = f"Configuration: \n\tmodel={model.__class__.__name__}, \n\toptimizer={optimizer.__class__.__name__}, \n\tlr={SGD_LR if SGD else ADAM_LR}, \n\tdrop={DROP}\n" 
-    print(config)
+    # Configuration 
+    print(f"Configuration: \n\tmodel={model.__class__.__name__}, \n\toptimizer={optimizer.__class__.__name__}, \n\tlr={SGD_LR if SGD else ADAM_LR}, \n\tdrop={DROP}\n")
 
     # Training
     patience = 3
@@ -121,8 +120,8 @@ def main():
     print('Test ppl: ', final_ppl)
 
     # Save config and final_ppl to a CSV file
-    data = {'config': config, 'final_ppl': final_ppl}
-    csv_file = 'results.csv'
+    data = {'model': model.__class__.__name__, 'optimizer': optimizer.__class__.__name__, 'lr': SGD_LR if SGD else ADAM_LR, 'drop': DROP, 'final_ppl': final_ppl}
+    csv_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results.csv")
 
     with open(csv_file, 'a', newline='') as file:
         writer = csv.DictWriter(file, fieldnames=data.keys())
