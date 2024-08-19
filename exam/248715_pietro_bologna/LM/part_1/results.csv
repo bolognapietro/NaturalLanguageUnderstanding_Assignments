@@ -26,3 +26,5 @@ model,optimizer,lr,drop,final_ppl
 LSTM_RNN_DROP,SGD,5,True,130.17147880549487
 model,optimizer,lr,drop,final_ppl
 LSTM_RNN_DROP,AdamW,0.001,True,119.51298650421437
+model,optimizer,lr,drop,final_ppl
+LSTM_RNN,SGD,5,False,134.9892943421378

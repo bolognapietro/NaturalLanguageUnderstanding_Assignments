@@ -19,9 +19,9 @@ EMB_SIZE = 300
 N_EPOCHS = 100
 
 # Flags
-DROP = True
-SGD = False
-ADAM = True
+DROP = False
+SGD = True
+ADAM = False
 
 # Hyperparameters
 SGD_LR = 5
