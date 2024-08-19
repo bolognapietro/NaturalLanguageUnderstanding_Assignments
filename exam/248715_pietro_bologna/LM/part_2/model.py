@@ -9,7 +9,7 @@ class VariationalDropout(nn.Module):
         self.dropout = p
 
     def forward(self, input):
-        if not self.training or not self.dropout == 0:
+        if not self.training or not self.dropout:
             return input
         
         mask = input.new_empty(input.size(0), 1, input.size(2)).bernoulli_(1 - self.dropout)
@@ -19,28 +19,8 @@ class VariationalDropout(nn.Module):
         return mask * input
 
 class LSTM_RNN(nn.Module):
-    def __init__(self, emb_size, hidden_size, output_size, pad_index=0, out_dropout=0.1, emb_dropout=0.1, n_layers=1):
+    def __init__(self, emb_size, hidden_size, output_size, pad_index=0, out_dropout=0.5, emb_dropout=0.65, n_layers=1, weight_tying=False, variational_drop=False):
         super(LSTM_RNN, self).__init__()
-
-        self.embedding = nn.Embedding(output_size, emb_size, padding_idx=pad_index)
-        
-        self.lstm = nn.LSTM(emb_size, hidden_size, n_layers, bidirectional=False, batch_first=True)
-
-        self.pad_token = pad_index
-
-        self.output = nn.Linear(hidden_size, output_size)
-
-    def forward(self, input_sequence):
-        emb = self.embedding(input_sequence)
-
-        lstm_out, _  = self.lstm(emb)
-        
-        output = self.output(lstm_out).permute(0,2,1)
-        return output
-
-class LSTM_RNN_DROP(nn.Module):
-    def __init__(self, emb_size, hidden_size, output_size, pad_index=0, out_dropout=0.1, emb_dropout=0.1, n_layers=1, weight_tying=False, variational_drop=False):
-        super(LSTM_RNN_DROP, self).__init__()
 
         # Token ids to vectors, we will better see this in the next lab
         self.embedding = nn.Embedding(output_size, emb_size, padding_idx=pad_index)

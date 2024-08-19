@@ -1,6 +1,7 @@
 import math
 import torch
 import torch.nn as nn
+import matplotlib.pyplot as plt
 
 def train_loop(data, optimizer, criterion, model, clip=5):
     model.train()
@@ -57,3 +58,37 @@ def init_weights(mat):
                 torch.nn.init.uniform_(m.weight, -0.01, 0.01)
                 if m.bias != None:
                     m.bias.data.fill_(0.01)
+
+def plot_graph(data1, data2, losses_dev, losses_train, filename, filename1):
+
+    y1 = data1[:-1]  # last val is best_ppl, don't want to plot it 
+    y2 = data2[:-1]  
+    
+    x1 = list(range(1, len(y1) + 1))  # indx + 1
+    x2 = list(range(1, len(y2) + 1))  # indx + 1
+    
+    plt.plot(x1, y1, label='PPL valuation')
+    plt.plot(x2, y2, label='PPL training')
+    plt.xlabel('Epochs')
+    plt.ylabel('PPL')
+    plt.title('PPLs for each epoch')
+    plt.grid(True)
+    plt.legend()
+    plt.savefig(f"{filename}.jpg")
+    plt.close()
+
+    y1 = losses_dev  # last val is best_ppl, don't want to plot it 
+    y2 = losses_train
+
+    x1 = list(range(1, len(y1) + 1))  # indx + 1
+    x2 = list(range(1, len(y2) + 1))  # indx + 1
+    
+    plt.plot(x1, y1, label='Validation Loss')
+    plt.plot(x2, y2, label='Training Loss')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.title('Losses for each epoch')
+    plt.grid(True)
+    plt.legend()
+    plt.savefig(f"{filename1}.jpg")
+    plt.close()

@@ -20,8 +20,8 @@ N_EPOCHS = 100
 
 # Flags
 DROP = True
-SGD = True
-ADAM = False
+SGD = False
+ADAM = True
 
 # Hyperparameters
 SGD_LR = 5
@@ -119,6 +119,9 @@ def main():
     final_ppl,  _ = eval_loop(test_loader, criterion_eval, best_model)
     print('Test ppl: ', final_ppl)
 
+    array_ppl_dev.append(final_ppl)
+    array_ppl_train.append(final_ppl)
+
     # Save config and final_ppl to a CSV file
     data = {'model': model.__class__.__name__, 'optimizer': optimizer.__class__.__name__, 'lr': SGD_LR if SGD else ADAM_LR, 'drop': DROP, 'final_ppl': final_ppl}
     csv_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results.csv")
@@ -128,6 +131,9 @@ def main():
         writer.writeheader()
         writer.writerow(data)
 
+    plot_graph(array_ppl_dev, array_ppl_train, array_loss_dev, array_loss_train, 
+               f"PPL: {model.__class__.__name__} with {optimizer.__class__.__name__}: {SGD_LR if SGD else ADAM_LR} and drop: {DROP} --> {final_ppl}", 
+               f"LOSS: {model.__class__.__name__} with {optimizer.__class__.__name__}: {SGD_LR if SGD else ADAM_LR} and drop: {DROP} --> {final_ppl}")
 
 if __name__ == "__main__":
     main()
