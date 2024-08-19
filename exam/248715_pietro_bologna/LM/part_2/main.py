@@ -26,7 +26,7 @@ SGD = True
 ADAM = False
 
 WEIGH_TYING = True
-VARIATIONA_DROP = False
+VARIATIONA_DROP = True
 ASGD = False
 
 # Hyperparameters

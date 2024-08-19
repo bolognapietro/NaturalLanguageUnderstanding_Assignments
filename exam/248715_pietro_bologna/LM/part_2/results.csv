@@ -22,3 +22,5 @@ LSTM_RNN,ASGD,5,True,True,88.94015654714093 # batch size 32-64 and emb/hid_size 
 
 model,optimizer,lr,weight tying,variational drop,final_ppl
 LSTM_RNN,SGD,5,True,False,86.85116107856905
+model,optimizer,lr,weight tying,variational drop,final_ppl
+LSTM_RNN,SGD,5,True,True,89.32507138447333
