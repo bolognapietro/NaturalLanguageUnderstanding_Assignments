@@ -20,3 +20,5 @@ LSTM_RNN,SGD,5,True,True,104.71614923670325 # batch size 32-64 and emb/hid_size 
 LSTM_RNN,ASGD,5,True,True,88.94015654714093 # batch size 32-64 and emb/hid_size 600 and var_drop 0.65
 
 
+model,optimizer,lr,weight tying,variational drop,final_ppl
+LSTM_RNN,SGD,5,True,False,86.85116107856905

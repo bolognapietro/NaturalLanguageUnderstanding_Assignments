@@ -59,19 +59,19 @@ def init_weights(mat):
                 if m.bias != None:
                     m.bias.data.fill_(0.01)
 
-def plot_graph(data1, data2, losses_dev, losses_train, filename, filename1):
+def plot_graph(ppl_dev, ppl_train, losses_dev, losses_train, filename, filename1):
 
-    y1 = data1[:-1]  # last val is best_ppl, don't want to plot it 
-    y2 = data2[:-1]  
+    y1 = ppl_dev[:-1]  # last val is best_ppl, don't want to plot it 
+    y2 = ppl_train[:-1]  
     
     x1 = list(range(1, len(y1) + 1))  # indx + 1
     x2 = list(range(1, len(y2) + 1))  # indx + 1
     
-    plt.plot(x1, y1, label='PPL valuation')
-    plt.plot(x2, y2, label='PPL training')
+    plt.plot(x1, y1, label='PPL dev')
+    plt.plot(x2, y2, label='PPL train')
     plt.xlabel('Epochs')
     plt.ylabel('PPL')
-    plt.title('PPLs for each epoch')
+    plt.title('PPL')
     plt.grid(True)
     plt.legend()
     plt.savefig(f"{filename}.jpg")
@@ -83,11 +83,11 @@ def plot_graph(data1, data2, losses_dev, losses_train, filename, filename1):
     x1 = list(range(1, len(y1) + 1))  # indx + 1
     x2 = list(range(1, len(y2) + 1))  # indx + 1
     
-    plt.plot(x1, y1, label='Validation Loss')
-    plt.plot(x2, y2, label='Training Loss')
+    plt.plot(x1, y1, label='Loss dev')
+    plt.plot(x2, y2, label='Loss train')
     plt.xlabel('Epochs')
     plt.ylabel('Loss')
-    plt.title('Losses for each epoch')
+    plt.title('Loss')
     plt.grid(True)
     plt.legend()
     plt.savefig(f"{filename1}.jpg")
