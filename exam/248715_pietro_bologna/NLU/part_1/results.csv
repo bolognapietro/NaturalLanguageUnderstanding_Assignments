@@ -10,5 +10,7 @@ hid_size,emb_size,n_epochs,lr,bidir,drop,slot F1,accuracy
 
 ## 2.2 --> bidir and drop ##
 200,300,100,0.0001,True,True,0.9319872476089267,0.93505039193729    # Small
+200,300,100,0.0001,True,True,0.9346289752650176,0.948488241881299   # Small
 400,500,100,0.0001,True,True,0.9372680685633504,0.9406494960806271  # Large
+
 

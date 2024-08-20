@@ -6,8 +6,9 @@ import torch
 from conll import evaluate
 from sklearn.metrics import classification_report
 import torch.nn as nn
+import matplotlib.pyplot as plt
 
-from transformers import BertTokenizer, BertConfig
+from transformers import BertTokenizer
 
 tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
 
@@ -62,16 +63,42 @@ def eval_loop(data, criterion_slots, criterion_intents, model, lang):
             
             for id_seq, seq in enumerate(output_slots):
                 length = sample['slots_len'].tolist()[id_seq]
+                
                 utt_ids = sample['utterance'][id_seq][:length].tolist()
                 gt_ids = sample['y_slots'][id_seq].tolist()
                 gt_slots = [lang.id2slot[elem] for elem in gt_ids[:length]]
-                utterance = [lang.id2word[elem] for elem in utt_ids]
+                
+                utterance = tokenizer.convert_ids_to_tokens(utt_ids)
+
                 to_decode = seq[:length].tolist()
                 ref_slots.append([(utterance[id_el], elem) for id_el, elem in enumerate(gt_slots)])
                 tmp_seq = []
                 for id_el, elem in enumerate(to_decode):
                     tmp_seq.append((utterance[id_el], lang.id2slot[elem]))
                 hyp_slots.append(tmp_seq)
+    
+        tmp_ref = []
+        tmp_hyp = []
+        tmp_ref_tot = []
+        tmp_hyp_tot = []
+
+        # this part is done to remove pad in the reference slots and in the relative position in the predicted slot  
+
+        for ref, hyp in zip(ref_slots, hyp_slots):
+            tmp_ref = []
+            tmp_hyp = []
+
+            for r, h in zip(ref, hyp):
+                if r[1] != 'pad' and r[0] != '[CLS]' and r[0] != '[SEP]':
+                    tmp_ref.append(r)
+                    tmp_hyp.append(h)
+            
+            tmp_ref_tot.append(tmp_ref)
+            tmp_hyp_tot.append(tmp_hyp)
+        
+        ref_slots = tmp_ref_tot
+        hyp_slots = tmp_hyp_tot
+
     try:            
         results = evaluate(ref_slots, hyp_slots)
     except Exception as ex:
@@ -84,24 +111,23 @@ def eval_loop(data, criterion_slots, criterion_intents, model, lang):
         
     report_intent = classification_report(ref_intents, hyp_intents, 
                                           zero_division=False, output_dict=True)
+    
     return results, report_intent, loss_array
 
-def init_weights(mat):
-    for m in mat.modules():
-        if type(m) in [nn.GRU, nn.LSTM, nn.RNN]:
-            for name, param in m.named_parameters():
-                if 'weight_ih' in name:
-                    for idx in range(4):
-                        mul = param.shape[0]//4
-                        torch.nn.init.xavier_uniform_(param[idx*mul:(idx+1)*mul])
-                elif 'weight_hh' in name:
-                    for idx in range(4):
-                        mul = param.shape[0]//4
-                        torch.nn.init.orthogonal_(param[idx*mul:(idx+1)*mul])
-                elif 'bias' in name:
-                    param.data.fill_(0)
-        else:
-            if type(m) in [nn.Linear]:
-                torch.nn.init.uniform_(m.weight, -0.01, 0.01)
-                if m.bias != None:
-                    m.bias.data.fill_(0.01)
+def plot_graph(losses_dev, losses_train, filename):
+
+    y1 = losses_dev  # last val is best_ppl, don't want to plot it 
+    y2 = losses_train
+
+    x1 = list(range(1, len(y1) + 1))  # indx + 1
+    x2 = list(range(1, len(y2) + 1))  # indx + 1
+    
+    plt.plot(x1, y1, label='Loss dev')
+    plt.plot(x2, y2, label='Loss train')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.title('Loss')
+    plt.grid(True)
+    plt.legend()
+    plt.savefig(f"{filename}.jpg")
+    plt.close()

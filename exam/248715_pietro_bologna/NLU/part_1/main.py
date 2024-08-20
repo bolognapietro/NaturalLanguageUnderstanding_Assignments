@@ -21,16 +21,12 @@ HID_SIZE = 200  # 200/400
 EMB_SIZE = 300  # 300/500
 
 BIDIRECTIONAL = True
-DROP = False
+DROP = True
 
 PAD_TOKEN = 0
 
 LR = 0.0001     # Learning rate
 clip = 5        # Clip the gradient
-
-TRAIN_BATCH_SIZE = 128
-DEV_BATCH_SIZE = 64
-TEST_BATCH_SIZE = 64
 
 # First we get the 10% of the training set, then we compute the percentage of these examples 
 portion = 0.10
@@ -78,7 +74,6 @@ def main():
     vocab_len = len(lang.word2id)
 
     model = ModelIAS(HID_SIZE, out_slot, out_int, EMB_SIZE, vocab_len, pad_index=PAD_TOKEN, dropout=DROP, bidirectional=BIDIRECTIONAL).to(DEVICE)
-    model.apply(init_weights)
 
     # Create our datasets
     train_dataset = IntentsAndSlots(train_raw, lang)
@@ -86,9 +81,9 @@ def main():
     test_dataset = IntentsAndSlots(test_raw, lang)
 
     # Dataloader instantiations
-    train_loader = DataLoader(train_dataset, batch_size=TRAIN_BATCH_SIZE, collate_fn=collate_fn,  shuffle=True)
-    dev_loader = DataLoader(dev_dataset, batch_size=DEV_BATCH_SIZE, collate_fn=collate_fn)
-    test_loader = DataLoader(test_dataset, batch_size=TEST_BATCH_SIZE, collate_fn=collate_fn)
+    train_loader = DataLoader(train_dataset, batch_size=128, collate_fn=collate_fn,  shuffle=True)
+    dev_loader = DataLoader(dev_dataset, batch_size=64, collate_fn=collate_fn)
+    test_loader = DataLoader(test_dataset, batch_size=64, collate_fn=collate_fn)
 
     optimizer = optim.Adam(model.parameters(), lr=LR)
     criterion_slots = nn.CrossEntropyLoss(ignore_index=PAD_TOKEN)
@@ -102,24 +97,25 @@ def main():
     best_f1 = 0
 
     for x in tqdm(range(1,n_epochs)):
-        loss_train = train_loop(train_loader, optimizer, criterion_slots, criterion_intents, model, clip=clip)
-        sampled_epochs.append(x)
-        losses_train.append(np.asarray(loss_train).mean())
-        results_dev, intent_res, loss_dev = eval_loop(dev_loader, criterion_slots, criterion_intents, model, lang)
-
-        losses_dev.append(np.asarray(loss_dev).mean())
+        loss = train_loop(train_loader, optimizer, criterion_slots, 
+                        criterion_intents, model, clip=clip)
+        if x % 5 == 0: # We check the performance every 5 epochs
+            sampled_epochs.append(x)
+            losses_train.append(np.asarray(loss).mean())
+            results_dev, _, loss_dev = eval_loop(dev_loader, criterion_slots, 
+                                                        criterion_intents, model, lang)
+            losses_dev.append(np.asarray(loss_dev).mean())
             
-        f1 = results_dev['total']['f']
-
-        # For decreasing the patience you can also use the average between slot f1 and intent accuracy
-        if f1 > best_f1:
-            best_f1 = f1
-            patience = 3
-        else:
-            patience -= 1
-
-        if patience <= 0: # Early stopping with patience
-            break # Not nice but it keeps the code clean
+            f1 = results_dev['total']['f']
+            # For decreasing the patience you can also use the average between slot f1 and intent accuracy
+            if f1 > best_f1:
+                best_f1 = f1
+                # Here you should save the model
+                patience = 3
+            else:
+                patience -= 1
+            if patience <= 0: # Early stopping with patience
+                break # Not nice but it keeps the code clean
 
     results_test, intent_test, loss_dev = eval_loop(test_loader, criterion_slots, criterion_intents, model, lang)    
 

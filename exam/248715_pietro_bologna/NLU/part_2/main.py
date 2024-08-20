@@ -12,13 +12,11 @@ from collections import Counter
 import torch.optim as optim
 from tqdm import tqdm
 import os
-
-from transformers import BertTokenizer
+import csv
 
 DEVICE = 'cuda:0'
 
 HID_SIZE = 768
-EMB_SIZE = 300
 
 LR = 0.0001     # Learning rate
 clip = 5        # Clip the gradient
@@ -29,7 +27,6 @@ portion = 0.10
 def main():
     tmp_train_raw = load_data(os.path.join(os.path.dirname(os.path.abspath(__file__)), "dataset", "ATIS", "train.json"))
     test_raw = load_data(os.path.join(os.path.dirname(os.path.abspath(__file__)), "dataset", "ATIS", "test.json"))
-    
     
     intents = [x['intent'] for x in tmp_train_raw] # We stratify on intents
     count_y = Counter(intents)
@@ -68,10 +65,7 @@ def main():
     out_slot = len(lang.slot2id)
     out_int = len(lang.intent2id)
 
-    tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
-
     model = JointBERT(HID_SIZE, out_slot, out_int).to(DEVICE)
-    model.apply(init_weights)
 
     # Create our datasets
     train_dataset = IntentsAndSlots(train_raw, lang)
@@ -95,28 +89,43 @@ def main():
     best_f1 = 0
 
     for x in tqdm(range(1,n_epochs)):
-        loss = train_loop(train_loader, optimizer, criterion_slots, criterion_intents, model, clip=clip)
-        sampled_epochs.append(x)
-        losses_train.append(np.asarray(loss).mean())
-        results_dev, intent_res, loss_dev = eval_loop(dev_loader, criterion_slots, criterion_intents, model, lang)
+        loss = train_loop(train_loader, optimizer, criterion_slots, 
+                        criterion_intents, model, clip=clip)
         
-        losses_dev.append(np.asarray(loss_dev).mean())
-        
-        f1 = results_dev['total']['f']
-
-        if f1 > best_f1:
-            best_f1 = f1
-            patience = 3
-        else:
-            patience -= 1
-
-        if patience <= 0: # Early stopping with patience
-            break 
+        if x % 2 == 0:
+            sampled_epochs.append(x)
+            losses_train.append(np.asarray(loss).mean())
+            results_dev, intent_res, loss_dev = eval_loop(dev_loader, criterion_slots, 
+                                                        criterion_intents, model, lang)
+            losses_dev.append(np.asarray(loss_dev).mean())
+            
+            f1 = results_dev['total']['f']
+            # For decreasing the patience you can also use the average between slot f1 and intent accuracy
+            if f1 > best_f1:
+                best_f1 = f1
+                # Here you should save the model
+                patience = 3
+            else:
+                patience -= 1
+            if patience <= 0: # Early stopping with patience
+                break # Not nice but it keeps the code clean
             
     results_test, intent_test, _ = eval_loop(test_loader, criterion_slots, criterion_intents, model, lang)    
 
     print('Slot F1: ', results_test['total']['f'])
     print('Intent Accuracy:', intent_test['accuracy'])
+
+    # Save config and final_ppl to a CSV file
+    data = {'hid_size': HID_SIZE, 'n_epochs': n_epochs, 'lr': LR, 'slot F1': results_test['total']['f'], 'accuracy': intent_test['accuracy']}
+    csv_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results.csv")
+
+    with open(csv_file, 'a', newline='') as file:
+        writer = csv.DictWriter(file, fieldnames=data.keys())
+        writer.writeheader()
+        writer.writerow(data)
+
+    plot_graph(losses_train, losses_dev,
+               f"LOSS: BERT with lr {LR}: hid_size {HID_SIZE} and epochs {n_epochs} --> slot F1 {results_test['total']['f']} and accuracy {intent_test['accuracy']}",)
 
 if __name__ == "__main__":
     main()

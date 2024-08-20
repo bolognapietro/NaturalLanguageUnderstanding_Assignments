@@ -1,4 +1,6 @@
-hid_size,emb_size,n_epochs,lr,bidir,drop,slot F1,accuracy
+hid_size,n_epochs,lr,slot F1,accuracy
 
-## 2.3 -->  ##
-
+## 2.3 --> BERT tokenizer ##
+768,100,0.0001,0.9526325057228385,0.975363941769317     # Every epoch
+768,200,0.0001,0.9534352486382006,0.9798432250839866    # Every 2 epochs
+768,200,0.0001,0.9577910657755891,0.9764837625979843    # Every 5 epochs
