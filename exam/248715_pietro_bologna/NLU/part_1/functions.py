@@ -3,6 +3,7 @@ import torch
 from conll import evaluate
 from sklearn.metrics import classification_report
 import torch.nn as nn
+import matplotlib.pyplot as plt
 
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1" # Used to report errors on CUDA side
 
@@ -104,3 +105,21 @@ def init_weights(mat):
                 torch.nn.init.uniform_(m.weight, -0.01, 0.01)
                 if m.bias != None:
                     m.bias.data.fill_(0.01)
+
+def plot_graph(losses_dev, losses_train, filename):
+
+    y1 = losses_dev  # last val is best_ppl, don't want to plot it 
+    y2 = losses_train
+
+    x1 = list(range(1, len(y1) + 1))  # indx + 1
+    x2 = list(range(1, len(y2) + 1))  # indx + 1
+    
+    plt.plot(x1, y1, label='Loss dev')
+    plt.plot(x2, y2, label='Loss train')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.title('Loss')
+    plt.grid(True)
+    plt.legend()
+    plt.savefig(f"{filename}.jpg")
+    plt.close()

@@ -12,18 +12,25 @@ from collections import Counter
 from pprint import pprint
 from tqdm import tqdm
 
+import csv
+import os
+
 DEVICE = 'cuda:0'
 
-HID_SIZE = 250
-EMB_SIZE = 300
+HID_SIZE = 200  # 200/400
+EMB_SIZE = 300  # 300/500
 
-DROP = True
 BIDIRECTIONAL = True
+DROP = False
 
 PAD_TOKEN = 0
 
 LR = 0.0001     # Learning rate
 clip = 5        # Clip the gradient
+
+TRAIN_BATCH_SIZE = 128
+DEV_BATCH_SIZE = 64
+TEST_BATCH_SIZE = 64
 
 # First we get the 10% of the training set, then we compute the percentage of these examples 
 portion = 0.10
@@ -79,16 +86,15 @@ def main():
     test_dataset = IntentsAndSlots(test_raw, lang)
 
     # Dataloader instantiations
-    train_loader = DataLoader(train_dataset, batch_size=128, collate_fn=collate_fn,  shuffle=True)
-    dev_loader = DataLoader(dev_dataset, batch_size=64, collate_fn=collate_fn)
-    test_loader = DataLoader(test_dataset, batch_size=64, collate_fn=collate_fn)
+    train_loader = DataLoader(train_dataset, batch_size=TRAIN_BATCH_SIZE, collate_fn=collate_fn,  shuffle=True)
+    dev_loader = DataLoader(dev_dataset, batch_size=DEV_BATCH_SIZE, collate_fn=collate_fn)
+    test_loader = DataLoader(test_dataset, batch_size=TEST_BATCH_SIZE, collate_fn=collate_fn)
 
     optimizer = optim.Adam(model.parameters(), lr=LR)
     criterion_slots = nn.CrossEntropyLoss(ignore_index=PAD_TOKEN)
     criterion_intents = nn.CrossEntropyLoss() # Because we do not have the pad token
     
-    #! SINGLE RUN
-    n_epochs = 20
+    n_epochs = 100
     patience = 3
     losses_train = []
     losses_dev = []
@@ -96,30 +102,41 @@ def main():
     best_f1 = 0
 
     for x in tqdm(range(1,n_epochs)):
-        loss = train_loop(train_loader, optimizer, criterion_slots, criterion_intents, model, clip=clip)
-        
-        if x % 5 == 0: # We check the performance every 5 epochs
-            sampled_epochs.append(x)
-            losses_train.append(np.asarray(loss).mean())
-            results_dev, intent_res, loss_dev = eval_loop(dev_loader, criterion_slots, criterion_intents, model, lang)
-            losses_dev.append(np.asarray(loss_dev).mean())
+        loss_train = train_loop(train_loader, optimizer, criterion_slots, criterion_intents, model, clip=clip)
+        sampled_epochs.append(x)
+        losses_train.append(np.asarray(loss_train).mean())
+        results_dev, intent_res, loss_dev = eval_loop(dev_loader, criterion_slots, criterion_intents, model, lang)
+
+        losses_dev.append(np.asarray(loss_dev).mean())
             
-            f1 = results_dev['total']['f']
+        f1 = results_dev['total']['f']
 
-            # For decreasing the patience you can also use the average between slot f1 and intent accuracy
-            if f1 > best_f1:
-                best_f1 = f1
-                patience = 3
-            else:
-                patience -= 1
+        # For decreasing the patience you can also use the average between slot f1 and intent accuracy
+        if f1 > best_f1:
+            best_f1 = f1
+            patience = 3
+        else:
+            patience -= 1
 
-            if patience <= 0: # Early stopping with patience
-                break # Not nice but it keeps the code clean
+        if patience <= 0: # Early stopping with patience
+            break # Not nice but it keeps the code clean
 
-    results_test, intent_test, _ = eval_loop(test_loader, criterion_slots, criterion_intents, model, lang)    
+    results_test, intent_test, loss_dev = eval_loop(test_loader, criterion_slots, criterion_intents, model, lang)    
 
     print('Slot F1: ', results_test['total']['f'])
     print('Intent Accuracy:', intent_test['accuracy'])
+
+    # Save config and final_ppl to a CSV file
+    data = {'hid_size': HID_SIZE, 'emb_size': EMB_SIZE, 'n_epochs': n_epochs, 'lr': LR, 'bidir': BIDIRECTIONAL, 'drop': DROP, 'slot F1': results_test['total']['f'], 'accuracy': intent_test['accuracy']}
+    csv_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results.csv")
+
+    with open(csv_file, 'a', newline='') as file:
+        writer = csv.DictWriter(file, fieldnames=data.keys())
+        writer.writeheader()
+        writer.writerow(data)
+
+    plot_graph(losses_train, losses_dev,
+               f"LOSS: bidir {BIDIRECTIONAL} and drop {DROP} with lr {LR}: hid-emb_size {HID_SIZE}-{EMB_SIZE} and epochs {n_epochs} --> slot F1 {results_test['total']['f']} and accuracy {intent_test['accuracy']}",)
 
 
 if __name__ == "__main__":

@@ -11,6 +11,9 @@ from sklearn.model_selection import train_test_split
 from collections import Counter
 import torch.optim as optim
 from tqdm import tqdm
+import os
+
+from transformers import BertTokenizer
 
 DEVICE = 'cuda:0'
 
@@ -60,11 +63,12 @@ def main():
     slots = set(sum([line['slots'].split() for line in corpus],[]))
     intents = set([line['intent'] for line in corpus])
 
-    lang = Lang(words, intents, slots, cutoff=0)
+    lang = Lang(intents, slots)
 
     out_slot = len(lang.slot2id)
     out_int = len(lang.intent2id)
-    vocab_len = len(lang.word2id)
+
+    tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
 
     model = JointBERT(HID_SIZE, out_slot, out_int).to(DEVICE)
     model.apply(init_weights)
@@ -82,8 +86,7 @@ def main():
     optimizer = optim.Adam(model.parameters(), lr=LR)
     criterion_slots = nn.CrossEntropyLoss(ignore_index=lang.slot2id['pad'])
     criterion_intents = nn.CrossEntropyLoss() 
-    
-    #! SINGLE RUN
+
     n_epochs = 200
     patience = 3
     losses_train = []
@@ -93,23 +96,22 @@ def main():
 
     for x in tqdm(range(1,n_epochs)):
         loss = train_loop(train_loader, optimizer, criterion_slots, criterion_intents, model, clip=clip)
+        sampled_epochs.append(x)
+        losses_train.append(np.asarray(loss).mean())
+        results_dev, intent_res, loss_dev = eval_loop(dev_loader, criterion_slots, criterion_intents, model, lang)
+        
+        losses_dev.append(np.asarray(loss_dev).mean())
+        
+        f1 = results_dev['total']['f']
 
-        if x % 5 == 0: # We check the performance every 5 epochs
-            sampled_epochs.append(x)
-            losses_train.append(np.asarray(loss).mean())
-            results_dev, intent_res, loss_dev = eval_loop(dev_loader, criterion_slots, criterion_intents, model, lang)
-            losses_dev.append(np.asarray(loss_dev).mean())
-            
-            f1 = results_dev['total']['f']
+        if f1 > best_f1:
+            best_f1 = f1
+            patience = 3
+        else:
+            patience -= 1
 
-            if f1 > best_f1:
-                best_f1 = f1
-                patience = 3
-            else:
-                patience -= 1
-
-            if patience <= 0: # Early stopping with patience
-                break 
+        if patience <= 0: # Early stopping with patience
+            break 
             
     results_test, intent_test, _ = eval_loop(test_loader, criterion_slots, criterion_intents, model, lang)    
 

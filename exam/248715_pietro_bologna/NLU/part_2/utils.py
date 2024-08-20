@@ -8,6 +8,7 @@ from functions import *
 from transformers import BertTokenizer, BertConfig
 
 tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+
 DEVICE = 'cuda:0'
 
 PAD_TOKEN = 0
@@ -23,23 +24,11 @@ def load_data(path):
     return dataset
 
 class Lang():
-    def __init__(self, words, intents, slots, cutoff=0):
-        self.word2id = self.w2id(words, cutoff=cutoff, unk=True)
+    def __init__(self, intents, slots, cutoff=0):
         self.slot2id = self.lab2id(slots)
         self.intent2id = self.lab2id(intents, pad=False)
-        self.id2word = {v:k for k, v in self.word2id.items()}
         self.id2slot = {v:k for k, v in self.slot2id.items()}
         self.id2intent = {v:k for k, v in self.intent2id.items()}
-        
-    def w2id(self, elements, cutoff=None, unk=True):
-        vocab = {'pad': PAD_TOKEN}
-        if unk:
-            vocab['unk'] = len(vocab)      
-        count = Counter(elements)
-        for k, v in count.items():
-            if v > cutoff:
-                vocab[k] = len(vocab)
-        return vocab
     
     def lab2id(self, elements, pad=True):
         vocab = {}
@@ -47,6 +36,7 @@ class Lang():
             vocab['pad'] = PAD_TOKEN
         for elem in elements:
                 vocab[elem] = len(vocab)
+        vocab['unk'] = len(vocab)
         return vocab
     
 class IntentsAndSlots (data.Dataset):
@@ -55,17 +45,17 @@ class IntentsAndSlots (data.Dataset):
         self.utterances = []
         self.intents = []
         self.slots = []
+        self.unk = unk
+
         self.attention_masks = []
         self.slot_ids = []
         self.utt_ids = []
         self.intent_ids = []
         self.token_type_ids = []
         
-        self.unk = unk
-
         for x in dataset:
-            self.utterances.append('[CLS] ' + x['utterance'] + ' [SEP]')
-            self.slots.append('O ' + x['slots'] + ' O')
+            self.utterances.append("[CLS] " + x['utterance'] + " [SEP]")
+            self.slots.append("O " + x['slots'] + " O")
             self.intents.append(x['intent'])
 
         self.utt_ids, self.slot_ids, self.attention_mask, self.token_type_ids = self.mapping_seq(self.utterances, self.slots, tokenizer, lang.slot2id)
@@ -88,7 +78,6 @@ class IntentsAndSlots (data.Dataset):
         return [mapper[x] if x in mapper else mapper[self.unk] for x in data]
 
     def mapping_seq(self, data_utt, data_slot, tokenizer, mapper): # Map sequences to number 
-        
         res_utt = []
         res_slot = []
         res_att = []
@@ -109,7 +98,7 @@ class IntentsAndSlots (data.Dataset):
                 tmp_seq.extend(word_tokens['input_ids'])
                 tmp_slot.extend([mapper[elem]] + [mapper['pad']]*(len(word_tokens['input_ids'])-1))             
 
-                for i in range(len(word_tokens['input_ids'])-1):
+                for _ in range(len(word_tokens['input_ids'])-1):
                     tmp_att.append(0)
                     tmp_tok_type_id.append(0)  
 
