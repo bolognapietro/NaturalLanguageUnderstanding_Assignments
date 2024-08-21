@@ -25,9 +25,9 @@ NON_MONO = 3    # Number of epochs to wait before switching to ASGD
 SGD = True
 ADAM = False
 
-WEIGH_TYING = False
-VARIATIONA_DROP = False
-ASGD = False
+WEIGHT_TYING = True
+VARIATIONAL_DROP = True
+ASGD = True
 
 # Hyperparameters
 SGD_LR = 5
@@ -64,8 +64,27 @@ def main():
     clip = 5
     vocab_len = len(lang.word2id)
 
-    model = LSTM_RNN(EMB_SIZE, HID_SIZE, vocab_len, pad_index=lang.word2id["<pad>"], weight_tying=WEIGH_TYING, variational_drop=VARIATIONA_DROP).to(DEVICE)
+    if VARIATIONAL_DROP:
+        model = LSTM_RNN(EMB_SIZE, HID_SIZE, vocab_len, pad_index=lang.word2id["<pad>"], out_dropout=0.5, emb_dropout=0.5, weight_tying=WEIGHT_TYING, variational_drop=VARIATIONAL_DROP).to(DEVICE)
+    else: 
+        model = LSTM_RNN(EMB_SIZE, HID_SIZE, vocab_len, pad_index=lang.word2id["<pad>"], weight_tying=WEIGHT_TYING, variational_drop=VARIATIONAL_DROP).to(DEVICE)
+    
     model.apply(init_weights)
+
+    # Set the filename for saving the trained model based on the configuration flags
+    flags = []
+    if WEIGHT_TYING:
+        flags.append('WEIGHT_TYING')
+    if VARIATIONAL_DROP:
+        flags.append('VARIATIONAL_DROP')
+    if ASGD:
+        flags.append('ASGD')
+
+    if flags:
+        flags_str = '_'.join(flags)
+        filename = f"{model._get_name()}_{flags_str}.pt"
+    else:
+        filename = f"{model._get_name()}_.pt"
 
     # Optimizer
     if ADAM:
@@ -133,7 +152,7 @@ def main():
             if  ppl_dev < best_ppl:
                 best_ppl = ppl_dev
                 best_model = copy.deepcopy(model).to('cpu')
-                save_model(model=best_model,filename=f"{model._get_name()}.pt")
+                save_model(model=best_model, filename=filename)
                 patience = 3
             else:
                 patience -= 1
@@ -159,17 +178,17 @@ def main():
     array_ppl_train.append(final_ppl)
 
     # Save config and final_ppl to a CSV file
-    # data = {'model': model.__class__.__name__, 'optimizer': optimizer.__class__.__name__, 'lr': SGD_LR if SGD else ADAM_LR, 'weight tying': WEIGH_TYING, 'variational drop': VARIATIONA_DROP, 'final_ppl': final_ppl}
-    # csv_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results.csv")
-    # with open(csv_file, 'a', newline='') as file:
-    #     writer = csv.DictWriter(file, fieldnames=data.keys())
-    #     writer.writeheader()
-    #     writer.writerow(data)
+    data = {'model': model.__class__.__name__, 'optimizer': optimizer.__class__.__name__, 'lr': SGD_LR if SGD else ADAM_LR, 'weight tying': WEIGHT_TYING, 'variational drop': VARIATIONAL_DROP, 'final_ppl': final_ppl}
+    csv_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results.csv")
+    with open(csv_file, 'a', newline='') as file:
+        writer = csv.DictWriter(file, fieldnames=data.keys())
+        writer.writeheader()
+        writer.writerow(data)
 
     # Plot the results
-    # plot_graph(array_ppl_dev, array_ppl_train, array_loss_dev, array_loss_train, 
-    #            f"PPL: {model.__class__.__name__} with {optimizer.__class__.__name__}: {SGD_LR if SGD else ADAM_LR} --> {final_ppl}", 
-    #            f"LOSS: {model.__class__.__name__} with {optimizer.__class__.__name__}: {SGD_LR if SGD else ADAM_LR} --> {final_ppl}")
+    plot_graph(array_ppl_dev, array_ppl_train, array_loss_dev, array_loss_train, 
+               f"PPL: {model.__class__.__name__} with {optimizer.__class__.__name__}: {SGD_LR if SGD else ADAM_LR} --> {final_ppl}", 
+               f"LOSS: {model.__class__.__name__} with {optimizer.__class__.__name__}: {SGD_LR if SGD else ADAM_LR} --> {final_ppl}")
 
 
 if __name__ == "__main__":

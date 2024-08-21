@@ -22,7 +22,7 @@ class VariationalDropout(nn.Module):
 
 # LSTM model
 class LSTM_RNN(nn.Module):
-    def __init__(self, emb_size, hidden_size, output_size, pad_index=0, out_dropout=0.5, emb_dropout=0.65, n_layers=1, weight_tying=False, variational_drop=False):
+    def __init__(self, emb_size, hidden_size, output_size, pad_index=0, out_dropout=0.1, emb_dropout=0.1, n_layers=1, weight_tying=False, variational_drop=False):
         super(LSTM_RNN, self).__init__()
 
         # Define the model
