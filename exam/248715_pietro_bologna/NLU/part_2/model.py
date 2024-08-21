@@ -7,7 +7,8 @@ class JointBERT(nn.Module):
 
     def __init__(self, hid_size, out_slot, out_int):
         super(JointBERT, self).__init__()
-        
+
+        # Initializes the BERT model from the pre-trained "bert-base-uncased" checkpoint 
         self.bert = BertModel.from_pretrained('bert-base-uncased')
 
         self.slot_out = nn.Linear(hid_size, out_slot)
@@ -19,9 +20,8 @@ class JointBERT(nn.Module):
         sequence_output = output[0]
         pooled_output = output[1]
 
-        # Compute slot logits
+        # Compute slot logits and intent logits
         slots = self.slot_out(sequence_output)
-        # Compute intent logits
         intent = self.intent_out(pooled_output)
 
         # Slot size: batch_size, seq_len, classes 

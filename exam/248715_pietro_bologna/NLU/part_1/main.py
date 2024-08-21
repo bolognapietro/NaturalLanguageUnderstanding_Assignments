@@ -9,7 +9,6 @@ from torch.utils.data import DataLoader
 import numpy as np
 from sklearn.model_selection import train_test_split
 from collections import Counter
-from pprint import pprint
 from tqdm import tqdm
 
 import csv
@@ -68,7 +67,7 @@ def main():
     slots = set(sum([line['slots'].split() for line in corpus],[]))
     intents = set([line['intent'] for line in corpus])
 
-    # Create the language object
+    # Create the lang object
     lang = Lang(words, intents, slots, cutoff=0)
 
     out_slot = len(lang.slot2id)
@@ -138,7 +137,6 @@ def main():
     # Save the results in a csv file
     # data = {'hid_size': HID_SIZE, 'emb_size': EMB_SIZE, 'n_epochs': n_epochs, 'lr': LR, 'bidir': BIDIRECTIONAL, 'drop': DROP, 'slot F1': results_test['total']['f'], 'accuracy': intent_test['accuracy']}
     # csv_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results.csv")
-
     # with open(csv_file, 'a', newline='') as file:
     #     writer = csv.DictWriter(file, fieldnames=data.keys())
     #     writer.writeheader()

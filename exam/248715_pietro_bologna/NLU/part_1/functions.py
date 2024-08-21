@@ -74,6 +74,7 @@ def eval_loop(data, criterion_slots, criterion_intents, model, lang):
             
             # Decode the slots
             output_slots = torch.argmax(slots, dim=1)
+            
             for id_seq, seq in enumerate(output_slots):
                 length = sample['slots_len'].tolist()[id_seq]
 

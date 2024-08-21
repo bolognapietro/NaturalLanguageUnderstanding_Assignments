@@ -62,7 +62,7 @@ class IntentsAndSlots (data.Dataset):
         self.slots = []
         self.unk = unk
 
-        # Populate lists with the corresponding data.
+        # Populate lists with the corresponding data
         for x in dataset:
             self.utterances.append(x['utterance'])
             self.slots.append(x['slots'])
