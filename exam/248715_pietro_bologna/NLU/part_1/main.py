@@ -99,7 +99,7 @@ def main():
     for x in tqdm(range(1,n_epochs)):
         loss = train_loop(train_loader, optimizer, criterion_slots, 
                         criterion_intents, model, clip=clip)
-        if x % 5 == 0: # We check the performance every 5 epochs
+        if x % 1 == 0: # We check the performance every 5 epochs
             sampled_epochs.append(x)
             losses_train.append(np.asarray(loss).mean())
             results_dev, _, loss_dev = eval_loop(dev_loader, criterion_slots, 
@@ -131,7 +131,7 @@ def main():
         writer.writeheader()
         writer.writerow(data)
 
-    plot_graph(losses_train, losses_dev,
+    plot_graph(losses_dev, losses_train,
                f"LOSS: bidir {BIDIRECTIONAL} and drop {DROP} with lr {LR}: hid-emb_size {HID_SIZE}-{EMB_SIZE} and epochs {n_epochs} --> slot F1 {results_test['total']['f']} and accuracy {intent_test['accuracy']}",)
 
 
