@@ -20,12 +20,12 @@ DEVICE = 'cuda:0'
 HID_SIZE = 200  # 200/400
 EMB_SIZE = 300  # 300/500
 
-BIDIRECTIONAL = True
-DROP = True
+BIDIRECTIONAL = False
+DROP = False
 
 PAD_TOKEN = 0
 
-LR = 0.0001     # Learning rate
+LR = 0.001     # Learning rate
 clip = 5        # Clip the gradient
 
 # First we get the 10% of the training set, then we compute the percentage of these examples 
@@ -85,7 +85,7 @@ def main():
     dev_loader = DataLoader(dev_dataset, batch_size=64, collate_fn=collate_fn)
     test_loader = DataLoader(test_dataset, batch_size=64, collate_fn=collate_fn)
 
-    optimizer = optim.Adam(model.parameters(), lr=LR)
+    optimizer = optim.AdamW(model.parameters(), lr=LR)
     criterion_slots = nn.CrossEntropyLoss(ignore_index=PAD_TOKEN)
     criterion_intents = nn.CrossEntropyLoss() # Because we do not have the pad token
     
@@ -99,7 +99,8 @@ def main():
     for x in tqdm(range(1,n_epochs)):
         loss = train_loop(train_loader, optimizer, criterion_slots, 
                         criterion_intents, model, clip=clip)
-        if x % 1 == 0: # We check the performance every 5 epochs
+        
+        if x % 5 == 0: 
             sampled_epochs.append(x)
             losses_train.append(np.asarray(loss).mean())
             results_dev, _, loss_dev = eval_loop(dev_loader, criterion_slots, 
