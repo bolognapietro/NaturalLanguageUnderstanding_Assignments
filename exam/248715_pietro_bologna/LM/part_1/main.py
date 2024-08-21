@@ -20,7 +20,7 @@ EMB_SIZE = 300  # Embedding size
 N_EPOCHS = 100  # Number of epochs
 
 # Flags
-DROP = False
+DROP = True
 SGD = True
 ADAM = False
 
@@ -113,7 +113,7 @@ def main():
             if  ppl_dev < best_ppl:
                 best_ppl = ppl_dev
                 best_model = copy.deepcopy(model).to('cpu')
-                save_model(model=best_model,filename=f"{model._get_name()}.pt")
+                save_model(model=best_model,filename=f"{model._get_name()}_{optimizer.__class__.__name__}.pt")
                 patience = 3
             else:
                 patience -= 1
@@ -133,17 +133,17 @@ def main():
     array_ppl_train.append(final_ppl)
 
     # Save config and final_ppl to a CSV file
-    # data = {'model': model.__class__.__name__, 'optimizer': optimizer.__class__.__name__, 'lr': SGD_LR if SGD else ADAM_LR, 'drop': DROP, 'final_ppl': final_ppl}
-    # csv_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results.csv")
-    # with open(csv_file, 'a', newline='') as file:
-    #     writer = csv.DictWriter(file, fieldnames=data.keys())
-    #     writer.writeheader()
-    #     writer.writerow(data)
+    data = {'model': model.__class__.__name__, 'optimizer': optimizer.__class__.__name__, 'lr': SGD_LR if SGD else ADAM_LR, 'drop': DROP, 'final_ppl': final_ppl}
+    csv_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results.csv")
+    with open(csv_file, 'a', newline='') as file:
+        writer = csv.DictWriter(file, fieldnames=data.keys())
+        writer.writeheader()
+        writer.writerow(data)
 
     # Plot the results
-    # plot_graph(array_ppl_dev, array_ppl_train, array_loss_dev, array_loss_train, 
-    #            f"PPL: {model.__class__.__name__} with {optimizer.__class__.__name__}: {SGD_LR if SGD else ADAM_LR} and drop: {DROP} --> {final_ppl}", 
-    #            f"LOSS: {model.__class__.__name__} with {optimizer.__class__.__name__}: {SGD_LR if SGD else ADAM_LR} and drop: {DROP} --> {final_ppl}")
+    plot_graph(array_ppl_dev, array_ppl_train, array_loss_dev, array_loss_train, 
+               f"PPL: {model._get_name()} with {optimizer.__class__.__name__}: {SGD_LR if SGD else ADAM_LR} and drop: {DROP} --> {final_ppl}", 
+               f"LOSS: {model._get_name()} with {optimizer.__class__.__name__}: {SGD_LR if SGD else ADAM_LR} and drop: {DROP} --> {final_ppl}")
 
 if __name__ == "__main__":
     main()

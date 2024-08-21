@@ -4,7 +4,7 @@ import numpy as np
 
 # LSTM model
 class LSTM_RNN(nn.Module):
-    def __init__(self, emb_size, hidden_size, output_size, pad_index=0, out_dropout=0.1, emb_dropout=0.1, n_layers=1):
+    def __init__(self, emb_size, hidden_size, output_size, pad_index=0, n_layers=1):
         super(LSTM_RNN, self).__init__()
 
         # Define the model
