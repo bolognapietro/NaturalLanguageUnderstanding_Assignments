@@ -25,7 +25,7 @@ DROP = False
 
 PAD_TOKEN = 0
 
-LR = 0.001     # Learning rate
+LR = 0.0001     # Learning rate
 clip = 5        # Clip the gradient
 
 # First we get the 10% of the training set, then we compute the percentage of these examples 
@@ -85,7 +85,7 @@ def main():
     dev_loader = DataLoader(dev_dataset, batch_size=64, collate_fn=collate_fn)
     test_loader = DataLoader(test_dataset, batch_size=64, collate_fn=collate_fn)
 
-    optimizer = optim.AdamW(model.parameters(), lr=LR)
+    optimizer = optim.Adam(model.parameters(), lr=LR)
     criterion_slots = nn.CrossEntropyLoss(ignore_index=PAD_TOKEN)
     criterion_intents = nn.CrossEntropyLoss() # Because we do not have the pad token
     
@@ -134,7 +134,6 @@ def main():
 
     plot_graph(losses_dev, losses_train,
                f"LOSS: bidir {BIDIRECTIONAL} and drop {DROP} with lr {LR}: hid-emb_size {HID_SIZE}-{EMB_SIZE} and epochs {n_epochs} --> slot F1 {results_test['total']['f']} and accuracy {intent_test['accuracy']}",)
-
 
 if __name__ == "__main__":
     main()
