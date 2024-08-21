@@ -31,7 +31,7 @@ def train_loop(data, optimizer, criterion_slots, criterion_intents, model, clip=
         # Backward pass
         loss.backward()
         
-        # Clip the gradient
+        # Clip the gradient to avoid explosioning gradients
         torch.nn.utils.clip_grad_norm_(model.parameters(), clip)  
         
         # Update the weights

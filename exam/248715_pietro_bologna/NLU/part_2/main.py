@@ -70,12 +70,12 @@ def main():
     # Model instantiation
     model = JointBERT(HID_SIZE, out_slot, out_int).to(DEVICE)
 
-    # Create our datasets
+    # Create the datasets
     train_dataset = IntentsAndSlots(train_raw, lang)
     dev_dataset = IntentsAndSlots(dev_raw, lang)
     test_dataset = IntentsAndSlots(test_raw, lang)
 
-    # Dataloader instantiations
+    # Create the dataloader
     train_loader = DataLoader(train_dataset, batch_size=128, collate_fn=collate_fn,  shuffle=True)
     dev_loader = DataLoader(dev_dataset, batch_size=64, collate_fn=collate_fn)
     test_loader = DataLoader(test_dataset, batch_size=64, collate_fn=collate_fn)
@@ -112,7 +112,7 @@ def main():
             # Early stopping
             if f1 > best_f1:
                 best_f1 = f1
-                save_model(epoch=x, model=model, optimizer=optimizer, lang=lang, filename=f"{model._get_name()}.pth")
+                save_model(epoch=x, model=model, optimizer=optimizer, lang=lang, filename=f"{model._get_name()}.pt")
                 patience = 3
             else:
                 patience -= 1

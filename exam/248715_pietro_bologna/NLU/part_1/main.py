@@ -19,6 +19,7 @@ DEVICE = 'cuda:0'
 HID_SIZE = 400  # Hidden size
 EMB_SIZE = 500  # Embedding size
 
+# Flags
 BIDIRECTIONAL = True   # Bidirectional LSTM
 DROP = True    # Dropout
 
@@ -77,12 +78,12 @@ def main():
     # Model instantiation
     model = ModelIAS(HID_SIZE, out_slot, out_int, EMB_SIZE, vocab_len, pad_index=PAD_TOKEN, dropout=DROP, bidirectional=BIDIRECTIONAL).to(DEVICE)
 
-    # Create our datasets
+    # Create the datasets
     train_dataset = IntentsAndSlots(train_raw, lang)
     dev_dataset = IntentsAndSlots(dev_raw, lang)
     test_dataset = IntentsAndSlots(test_raw, lang)
 
-    # Dataloader instantiations
+    # Create the dataloader
     train_loader = DataLoader(train_dataset, batch_size=128, collate_fn=collate_fn,  shuffle=True)
     dev_loader = DataLoader(dev_dataset, batch_size=64, collate_fn=collate_fn)
     test_loader = DataLoader(test_dataset, batch_size=64, collate_fn=collate_fn)
@@ -120,7 +121,7 @@ def main():
             if f1 > best_f1:
                 best_f1 = f1
                 # Save the model
-                save_model(epoch=x, model=model, optimizer=optimizer, lang=lang, filename=f"{model._get_name()}.pth")
+                save_model(epoch=x, model=model, optimizer=optimizer, lang=lang, filename=f"{model._get_name()}.pt")
                 patience = 3
             else:
                 patience -= 1
