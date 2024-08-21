@@ -84,7 +84,7 @@ def main():
         flags_str = '_'.join(flags)
         filename = f"{model._get_name()}_{flags_str}.pt"
     else:
-        filename = f"{model._get_name()}_.pt"
+        filename = f"{model._get_name()}.pt"
 
     # Optimizer
     if ADAM:

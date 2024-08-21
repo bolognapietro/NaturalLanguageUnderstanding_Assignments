@@ -132,7 +132,7 @@ def plot_graph(losses_dev, losses_train, filename):
 
 # Function used to save the model
 def save_model(epoch, model, optimizer, lang, filename):
-    PATH = os.path.join("exam/248715_pietro_bologna/NLU/part_1/bin", filename)
+    PATH = os.path.join("bin", filename)
     saving_object = {
         'epoch': epoch,
         'model': model.state_dict(),

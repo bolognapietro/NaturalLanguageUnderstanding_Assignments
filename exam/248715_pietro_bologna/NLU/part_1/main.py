@@ -93,6 +93,19 @@ def main():
     criterion_slots = nn.CrossEntropyLoss(ignore_index=PAD_TOKEN)
     criterion_intents = nn.CrossEntropyLoss() # Because we do not have the pad token
     
+    # Set the filename for saving the trained model based on the configuration flags
+    flags = []
+    if BIDIRECTIONAL:
+        flags.append('BIDIRECTIONAL')
+    if DROP:
+        flags.append('DROP')
+    
+    if flags:
+        flags_str = '_'.join(flags)
+        filename = f"{model._get_name()}_{flags_str}.pt"
+    else:
+        filename = f"{model._get_name()}.pt"
+
     # Training loop
     n_epochs = 200
     patience = 3
@@ -121,7 +134,7 @@ def main():
             if f1 > best_f1:
                 best_f1 = f1
                 # Save the model
-                save_model(epoch=x, model=model, optimizer=optimizer, lang=lang, filename=f"{model._get_name()}.pt")
+                save_model(epoch=x, model=model, optimizer=optimizer, lang=lang, filename=filename)
                 patience = 3
             else:
                 patience -= 1
