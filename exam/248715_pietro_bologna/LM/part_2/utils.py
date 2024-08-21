@@ -17,6 +17,9 @@ def read_file(path, eos_token="<eos>"):
 
 # Vocab with tokens to ids
 def get_vocab(corpus, special_tokens=[]):
+    """
+    Build vocab with tokens to ids
+    """
     output = {}
     i = 0 
     for st in special_tokens:
@@ -29,12 +32,13 @@ def get_vocab(corpus, special_tokens=[]):
                 i += 1
     return output
 
-# This class computes and stores our vocab 
-# Word to ids and ids to word
+# This class computes and stores our vocab. Word to ids and ids to word
 class Lang():
+
     def __init__(self, corpus, special_tokens=[]):
         self.word2id = self.get_vocab(corpus, special_tokens)
         self.id2word = {v:k for k, v in self.word2id.items()}
+    
     def get_vocab(self, corpus, special_tokens=[]):
         output = {}
         i = 0 
@@ -47,10 +51,11 @@ class Lang():
                     output[w] = i
                     i += 1
         return output
-    
 
+# PennTreeBank dataset designed for working with sequences of text
 class PennTreeBank (data.Dataset):
-    # Mandatory methods are __init__, __len__ and __getitem__
+
+    # Constructor
     def __init__(self, corpus, lang):
         self.source = []
         self.target = []
@@ -58,23 +63,24 @@ class PennTreeBank (data.Dataset):
         for sentence in corpus:
             self.source.append(sentence.split()[0:-1]) # We get from the first token till the second-last token
             self.target.append(sentence.split()[1:]) # We get from the second token till the last token
-            # See example in section 6.2
         
+        # Convert tokens to IDs
         self.source_ids = self.mapping_seq(self.source, lang)
         self.target_ids = self.mapping_seq(self.target, lang)
 
+    # Returns the number of samples in the dataset
     def __len__(self):
         return len(self.source)
 
+    # Returns the source and target sequences at the specified index
     def __getitem__(self, idx):
         src= torch.LongTensor(self.source_ids[idx])
         trg = torch.LongTensor(self.target_ids[idx])
         sample = {'source': src, 'target': trg}
         return sample
     
-    # Auxiliary methods
-    
-    def mapping_seq(self, data, lang): # Map sequences of tokens to corresponding computed in Lang class
+    # Map sequences of tokens to corresponding computed in Lang class   
+    def mapping_seq(self, data, lang): 
         res = []
         for seq in data:
             tmp_seq = []
@@ -83,7 +89,7 @@ class PennTreeBank (data.Dataset):
                     tmp_seq.append(lang.word2id[x])
                 else:
                     print('OOV found!')
-                    print('You have to deal with that') # PennTreeBank doesn't have OOV but "Trust is good, control is better!"
+                    print('You have to deal with that') 
                     break
             res.append(tmp_seq)
         return res

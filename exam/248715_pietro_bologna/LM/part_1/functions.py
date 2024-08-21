@@ -89,7 +89,7 @@ def init_weights(mat):
 # Function used to plot the loss values and the perplexity values
 def plot_graph(ppl_dev, ppl_train, losses_dev, losses_train, filename, filename1):
 
-    y1 = ppl_dev[:-1]  # Last val is best_ppl, don't want to plot it 
+    y1 = ppl_dev[:-1]  # Last value is best_ppl 
     y2 = ppl_train[:-1]  
     
     x1 = list(range(1, len(y1) + 1))  

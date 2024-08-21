@@ -14,19 +14,19 @@ import os
 from functools import partial
 import csv
 
-DEVICE = 'cuda:0'
+DEVICE = 'cuda:0' if torch.cuda.is_available() else 'cpu' 
 
-HID_SIZE = 600
-EMB_SIZE = 600
-N_EPOCHS = 100
-NON_MONO = 3
+HID_SIZE = 600  # Hidden size
+EMB_SIZE = 600  # Embedding size
+N_EPOCHS = 100  # Number of epochs
+NON_MONO = 3    # Number of epochs to wait before switching to ASGD
 
 # Flags
 SGD = True
 ADAM = False
 
-WEIGH_TYING = True
-VARIATIONA_DROP = True
+WEIGH_TYING = False
+VARIATIONA_DROP = False
 ASGD = False
 
 # Hyperparameters
@@ -59,14 +59,15 @@ def main():
     train_loader = DataLoader(train_dataset, batch_size=TRAIN_BATCH_SIZE, collate_fn=partial(collate_fn, pad_token=lang.word2id["<pad>"]),  shuffle=True)
     dev_loader = DataLoader(dev_dataset, batch_size=DEV_BATCH_SIZE, collate_fn=partial(collate_fn, pad_token=lang.word2id["<pad>"]))
     test_loader = DataLoader(test_dataset, batch_size=TEST_BATCH_SIZE, collate_fn=partial(collate_fn, pad_token=lang.word2id["<pad>"]))
-
-    # Model
+ 
+    # Model instantiation
     clip = 5
     vocab_len = len(lang.word2id)
 
     model = LSTM_RNN(EMB_SIZE, HID_SIZE, vocab_len, pad_index=lang.word2id["<pad>"], weight_tying=WEIGH_TYING, variational_drop=VARIATIONA_DROP).to(DEVICE)
     model.apply(init_weights)
 
+    # Optimizer
     if ADAM:
         lr = ADAM_LR
         optimizer = optim.AdamW(model.parameters(), lr=lr)
@@ -74,30 +75,31 @@ def main():
         lr = SGD_LR
         optimizer = optim.SGD(model.parameters(), lr=lr)
 
-    # Loss
+    # Loss function
     criterion_train = nn.CrossEntropyLoss(ignore_index=lang.word2id["<pad>"])
     criterion_eval = nn.CrossEntropyLoss(ignore_index=lang.word2id["<pad>"], reduction='sum')
-
-    # Configuration 
-    print(f"Configuration: \n\tmodel={model.__class__.__name__}, \n\toptimizer={optimizer.__class__.__name__}, \n\tlr={SGD_LR if SGD else ADAM_LR}, \n\tweight tying={WEIGH_TYING}, \n\tvariational drop={VARIATIONA_DROP}\n")
 
     patience = 3
     losses_train = []
     losses_dev = []
     sampled_epochs = []
+
     best_ppl = math.inf
     best_model = None
     pbar = tqdm(range(1, N_EPOCHS))
+    
     array_ppl_train = []
     array_loss_train = []
     array_ppl_dev = []
     array_loss_dev = []
 
     for epoch in pbar:
+        # Train
         ppl_train, loss_train = train_loop(train_loader, optimizer, criterion_train, model, clip)
         array_ppl_train.append(ppl_train)
         array_loss_train.append(loss_train)
 
+        # Evaluate
         if epoch % 1 == 0:
             sampled_epochs.append(epoch)
             losses_train.append(np.asarray(loss_train).mean())
@@ -127,9 +129,11 @@ def main():
                     string = "Switching to [ASGD]"
                     optimizer = optim.ASGD(model.parameters(), lr=lr, t0=0, lambd=0.)
 
-            if  ppl_dev < best_ppl: # the lower, the better
+            # Early stopping
+            if  ppl_dev < best_ppl:
                 best_ppl = ppl_dev
                 best_model = copy.deepcopy(model).to('cpu')
+                save_model(model=best_model,filename=f"{model._get_name()}.pt")
                 patience = 3
             else:
                 patience -= 1
@@ -140,29 +144,32 @@ def main():
 
             pbar.set_description(string + " -> PPL: %f" % ppl_dev)
             
-            if patience <= 0: # Early stopping with patience
-                break # Not nice but it keeps the code clean
-
+            if patience <= 0:
+                break 
+            
     best_model.to(DEVICE)
+
+    # Evaluate on the test set
     final_ppl,  _ = eval_loop(test_loader, criterion_eval, best_model)
-    
+
+    # Print the result
+    print('Test ppl: ', final_ppl)
+
     array_ppl_dev.append(final_ppl)
     array_ppl_train.append(final_ppl)
 
-    print('Test ppl: ', final_ppl)
-
     # Save config and final_ppl to a CSV file
-    data = {'model': model.__class__.__name__, 'optimizer': optimizer.__class__.__name__, 'lr': SGD_LR if SGD else ADAM_LR, 'weight tying': WEIGH_TYING, 'variational drop': VARIATIONA_DROP, 'final_ppl': final_ppl}
-    csv_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results.csv")
+    # data = {'model': model.__class__.__name__, 'optimizer': optimizer.__class__.__name__, 'lr': SGD_LR if SGD else ADAM_LR, 'weight tying': WEIGH_TYING, 'variational drop': VARIATIONA_DROP, 'final_ppl': final_ppl}
+    # csv_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results.csv")
+    # with open(csv_file, 'a', newline='') as file:
+    #     writer = csv.DictWriter(file, fieldnames=data.keys())
+    #     writer.writeheader()
+    #     writer.writerow(data)
 
-    with open(csv_file, 'a', newline='') as file:
-        writer = csv.DictWriter(file, fieldnames=data.keys())
-        writer.writeheader()
-        writer.writerow(data)
-
-    plot_graph(array_ppl_dev, array_ppl_train, array_loss_dev, array_loss_train, 
-               f"PPL: {model.__class__.__name__} with {optimizer.__class__.__name__}: {SGD_LR if SGD else ADAM_LR} --> {final_ppl}", 
-               f"LOSS: {model.__class__.__name__} with {optimizer.__class__.__name__}: {SGD_LR if SGD else ADAM_LR} --> {final_ppl}")
+    # Plot the results
+    # plot_graph(array_ppl_dev, array_ppl_train, array_loss_dev, array_loss_train, 
+    #            f"PPL: {model.__class__.__name__} with {optimizer.__class__.__name__}: {SGD_LR if SGD else ADAM_LR} --> {final_ppl}", 
+    #            f"LOSS: {model.__class__.__name__} with {optimizer.__class__.__name__}: {SGD_LR if SGD else ADAM_LR} --> {final_ppl}")
 
 
 if __name__ == "__main__":

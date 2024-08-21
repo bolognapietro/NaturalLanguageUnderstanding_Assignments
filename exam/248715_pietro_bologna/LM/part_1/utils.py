@@ -37,9 +37,11 @@ def get_vocab(corpus, special_tokens=[]):
 
 # This class computes and stores our vocab. Word to ids and ids to word
 class Lang():
+
     def __init__(self, corpus, special_tokens=[]):
         self.word2id = self.get_vocab(corpus, special_tokens)
         self.id2word = {v:k for k, v in self.word2id.items()}
+    
     def get_vocab(self, corpus, special_tokens=[]):
         output = {}
         i = 0 
@@ -126,4 +128,3 @@ def collate_fn(data, pad_token):
     new_item["target"] = target.to(DEVICE)
     new_item["number_tokens"] = sum(lengths)
     return new_item
-

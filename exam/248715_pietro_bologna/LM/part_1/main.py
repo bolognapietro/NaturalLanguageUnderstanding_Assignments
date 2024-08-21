@@ -4,12 +4,13 @@ from model import *
 
 import torch
 import torch.optim as optim
+from torch.utils.data import DataLoader
 
-import numpy as np
 from tqdm import tqdm
-import os
 import copy
 import math
+import numpy as np
+import os
 import csv
 
 DEVICE = 'cuda:0' if torch.cuda.is_available() else 'cpu' 
@@ -41,7 +42,7 @@ def main():
     # Create the vocabulary
     vocab = get_vocab(train_raw, ["<pad>", "<eos>"])
 
-    # Create the lang object
+    # Create the language
     lang = Lang(train_raw, ["<pad>", "<eos>"])
 
     # Create the datasets
@@ -55,7 +56,7 @@ def main():
     test_loader = DataLoader(test_dataset, batch_size=TEST_BATCH_SIZE, collate_fn=partial(collate_fn, pad_token=lang.word2id["<pad>"]))
 
     # Model instantiation
-    clip = 10
+    clip = 5
     vocab_len = len(lang.word2id)
 
     if DROP:
@@ -117,8 +118,8 @@ def main():
             else:
                 patience -= 1
 
-            if patience <= 0: # Early stopping with patience
-                break # Not nice but it keeps the code clean
+            if patience <= 0:
+                break
 
     best_model.to(DEVICE)
 
