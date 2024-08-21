@@ -17,13 +17,13 @@ import os
 
 DEVICE = 'cuda:0'
 
-HID_SIZE = 200  # 200/400
-EMB_SIZE = 300  # 300/500
+HID_SIZE = 400  # Hidden size
+EMB_SIZE = 500  # Embedding size
 
-BIDIRECTIONAL = False
-DROP = False
+BIDIRECTIONAL = True   # Bidirectional LSTM
+DROP = True    # Dropout
 
-PAD_TOKEN = 0
+PAD_TOKEN = 0   
 
 LR = 0.0001     # Learning rate
 clip = 5        # Clip the gradient
@@ -32,10 +32,11 @@ clip = 5        # Clip the gradient
 portion = 0.10
 
 def main():
+    # Load the data
     tmp_train_raw = load_data(os.path.join(os.path.dirname(os.path.abspath(__file__)), "dataset", "ATIS", "train.json"))
     test_raw = load_data(os.path.join(os.path.dirname(os.path.abspath(__file__)), "dataset", "ATIS", "test.json"))
 
-    intents = [x['intent'] for x in tmp_train_raw] # We stratify on intents
+    intents = [x['intent'] for x in tmp_train_raw]
     count_y = Counter(intents)
 
     labels = []
@@ -43,7 +44,7 @@ def main():
     mini_train = []
 
     for id_y, y in enumerate(intents):
-        if count_y[y] > 1: # If some intents occurs only once, we put them in training
+        if count_y[y] > 1: 
             inputs.append(tmp_train_raw[id_y])
             labels.append(y)
         else:
@@ -67,12 +68,14 @@ def main():
     slots = set(sum([line['slots'].split() for line in corpus],[]))
     intents = set([line['intent'] for line in corpus])
 
+    # Create the language object
     lang = Lang(words, intents, slots, cutoff=0)
 
     out_slot = len(lang.slot2id)
     out_int = len(lang.intent2id)
     vocab_len = len(lang.word2id)
 
+    # Model instantiation
     model = ModelIAS(HID_SIZE, out_slot, out_int, EMB_SIZE, vocab_len, pad_index=PAD_TOKEN, dropout=DROP, bidirectional=BIDIRECTIONAL).to(DEVICE)
 
     # Create our datasets
@@ -85,21 +88,26 @@ def main():
     dev_loader = DataLoader(dev_dataset, batch_size=64, collate_fn=collate_fn)
     test_loader = DataLoader(test_dataset, batch_size=64, collate_fn=collate_fn)
 
+    # Optimizer and loss function 
     optimizer = optim.Adam(model.parameters(), lr=LR)
     criterion_slots = nn.CrossEntropyLoss(ignore_index=PAD_TOKEN)
     criterion_intents = nn.CrossEntropyLoss() # Because we do not have the pad token
     
-    n_epochs = 100
+    # Training loop
+    n_epochs = 200
     patience = 3
+    best_f1 = 0
+    
     losses_train = []
     losses_dev = []
     sampled_epochs = []
-    best_f1 = 0
 
     for x in tqdm(range(1,n_epochs)):
+        # Train
         loss = train_loop(train_loader, optimizer, criterion_slots, 
                         criterion_intents, model, clip=clip)
         
+        # Evaluate 
         if x % 5 == 0: 
             sampled_epochs.append(x)
             losses_train.append(np.asarray(loss).mean())
@@ -108,32 +116,37 @@ def main():
             losses_dev.append(np.asarray(loss_dev).mean())
             
             f1 = results_dev['total']['f']
-            # For decreasing the patience you can also use the average between slot f1 and intent accuracy
+            
+            # Early stopping
             if f1 > best_f1:
                 best_f1 = f1
-                # Here you should save the model
+                # Save the model
+                save_model(epoch=x, model=model, optimizer=optimizer, lang=lang, filename=f"{model._get_name()}.pth")
                 patience = 3
             else:
                 patience -= 1
-            if patience <= 0: # Early stopping with patience
-                break # Not nice but it keeps the code clean
-
+            if patience <= 0: 
+                break 
+    
+    # Evaluate on the test set
     results_test, intent_test, loss_dev = eval_loop(test_loader, criterion_slots, criterion_intents, model, lang)    
 
+    # Print the results
     print('Slot F1: ', results_test['total']['f'])
     print('Intent Accuracy:', intent_test['accuracy'])
 
-    # Save config and final_ppl to a CSV file
-    data = {'hid_size': HID_SIZE, 'emb_size': EMB_SIZE, 'n_epochs': n_epochs, 'lr': LR, 'bidir': BIDIRECTIONAL, 'drop': DROP, 'slot F1': results_test['total']['f'], 'accuracy': intent_test['accuracy']}
-    csv_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results.csv")
+    # Save the results in a csv file
+    # data = {'hid_size': HID_SIZE, 'emb_size': EMB_SIZE, 'n_epochs': n_epochs, 'lr': LR, 'bidir': BIDIRECTIONAL, 'drop': DROP, 'slot F1': results_test['total']['f'], 'accuracy': intent_test['accuracy']}
+    # csv_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results.csv")
 
-    with open(csv_file, 'a', newline='') as file:
-        writer = csv.DictWriter(file, fieldnames=data.keys())
-        writer.writeheader()
-        writer.writerow(data)
+    # with open(csv_file, 'a', newline='') as file:
+    #     writer = csv.DictWriter(file, fieldnames=data.keys())
+    #     writer.writeheader()
+    #     writer.writerow(data)
 
-    plot_graph(losses_dev, losses_train,
-               f"LOSS: bidir {BIDIRECTIONAL} and drop {DROP} with lr {LR}: hid-emb_size {HID_SIZE}-{EMB_SIZE} and epochs {n_epochs} --> slot F1 {results_test['total']['f']} and accuracy {intent_test['accuracy']}",)
+    # Plot the results
+    # plot_graph(losses_dev, losses_train,
+    #            f"LOSS: bidir {BIDIRECTIONAL} and drop {DROP} with lr {LR}: hid-emb_size {HID_SIZE}-{EMB_SIZE} and epochs {n_epochs} --> slot F1 {results_test['total']['f']} and accuracy {intent_test['accuracy']}",)
 
 if __name__ == "__main__":
     main()

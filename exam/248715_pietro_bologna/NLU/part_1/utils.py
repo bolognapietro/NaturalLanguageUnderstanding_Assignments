@@ -10,6 +10,7 @@ DEVICE = 'cuda:0'
 
 PAD_TOKEN = 0
 
+# Load data
 def load_data(path):
     '''
         input: path/to/data
@@ -20,7 +21,9 @@ def load_data(path):
         dataset = json.loads(f.read())
     return dataset
 
+# The Lang class is designed to handle the mapping of words, intents, and slots to unique integer IDs
 class Lang():
+    # Constructor
     def __init__(self, words, intents, slots, cutoff=0):
         self.word2id = self.w2id(words, cutoff=cutoff, unk=True)
         self.slot2id = self.lab2id(slots)
@@ -28,7 +31,8 @@ class Lang():
         self.id2word = {v:k for k, v in self.word2id.items()}
         self.id2slot = {v:k for k, v in self.slot2id.items()}
         self.id2intent = {v:k for k, v in self.intent2id.items()}
-        
+    
+    # Converts a list of words into a dictionary mapping each word to a unique ID
     def w2id(self, elements, cutoff=None, unk=True):
         vocab = {'pad': PAD_TOKEN}
         if unk:
@@ -39,6 +43,7 @@ class Lang():
                 vocab[k] = len(vocab)
         return vocab
     
+    # Converts a list of labels (for intents or slots) into a dictionary mapping each label to a unique ID
     def lab2id(self, elements, pad=True):
         vocab = {}
         if pad:
@@ -47,27 +52,32 @@ class Lang():
                 vocab[elem] = len(vocab)
         return vocab
     
-
+# The IntentsAndSlots class is designed to handle data that consists of utterances, intents, and slots
 class IntentsAndSlots (data.Dataset):
-    # Mandatory methods are __init__, __len__ and __getitem__
+
+    # Constructor
     def __init__(self, dataset, lang, unk='unk'):
         self.utterances = []
         self.intents = []
         self.slots = []
         self.unk = unk
 
+        # Populate lists with the corresponding data.
         for x in dataset:
             self.utterances.append(x['utterance'])
             self.slots.append(x['slots'])
             self.intents.append(x['intent']) 
 
+        # Converts the utterances, slots, and intents to their respective ID sequences
         self.utt_ids = self.mapping_seq(self.utterances, lang.word2id)
         self.slot_ids = self.mapping_seq(self.slots, lang.slot2id)
         self.intent_ids = self.mapping_lab(self.intents, lang.intent2id)
 
+    # Returns the number of samples in the dataset
     def __len__(self):
         return len(self.utterances)
 
+    # Returns the sample at the specified index
     def __getitem__(self, idx):
         utt = torch.Tensor(self.utt_ids[idx])
         slots = torch.Tensor(self.slot_ids[idx])
@@ -75,12 +85,14 @@ class IntentsAndSlots (data.Dataset):
         sample = {'utterance': utt, 'slots': slots, 'intent': intent}
         return sample
     
-    # Auxiliary methods
+    # Maps a list of labels to their corresponding IDs
     def mapping_lab(self, data, mapper):
         return [mapper[x] if x in mapper else mapper[self.unk] for x in data]
     
-    def mapping_seq(self, data, mapper): # Map sequences to number
+    # Maps a list of sequences to their corresponding IDs
+    def mapping_seq(self, data, mapper):
         res = []
+        
         for seq in data:
             tmp_seq = []
             for x in seq.split():
@@ -89,6 +101,7 @@ class IntentsAndSlots (data.Dataset):
                 else:
                     tmp_seq.append(mapper[self.unk])
             res.append(tmp_seq)
+            
         return res
 
 def collate_fn(data):
