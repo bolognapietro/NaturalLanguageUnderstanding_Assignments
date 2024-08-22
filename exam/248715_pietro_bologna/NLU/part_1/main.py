@@ -10,8 +10,6 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from collections import Counter
 from tqdm import tqdm
-
-import csv
 import os
 
 DEVICE = 'cuda:0'
@@ -20,8 +18,8 @@ HID_SIZE = 400  # Hidden size
 EMB_SIZE = 500  # Embedding size
 
 # Flags
-BIDIRECTIONAL = True   # Bidirectional LSTM
-DROP = True    # Dropout
+BIDIRECTIONAL = True    # Bidirectional LSTM
+DROP = False            # Dropout
 
 PAD_TOKEN = 0   
 
@@ -134,7 +132,7 @@ def main():
             if f1 > best_f1:
                 best_f1 = f1
                 # Save the model
-                save_model(epoch=x, model=model, optimizer=optimizer, lang=lang, filename=filename)
+                # save_model(epoch=x, model=model, optimizer=optimizer, lang=lang, filename=filename)
                 patience = 3
             else:
                 patience -= 1
@@ -147,14 +145,6 @@ def main():
     # Print the results
     print('Slot F1: ', results_test['total']['f'])
     print('Intent Accuracy:', intent_test['accuracy'])
-
-    # Save the results in a csv file
-    # data = {'hid_size': HID_SIZE, 'emb_size': EMB_SIZE, 'n_epochs': n_epochs, 'lr': LR, 'bidir': BIDIRECTIONAL, 'drop': DROP, 'slot F1': results_test['total']['f'], 'accuracy': intent_test['accuracy']}
-    # csv_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results.csv")
-    # with open(csv_file, 'a', newline='') as file:
-    #     writer = csv.DictWriter(file, fieldnames=data.keys())
-    #     writer.writeheader()
-    #     writer.writerow(data)
 
     # Plot the results
     # plot_graph(losses_dev, losses_train,

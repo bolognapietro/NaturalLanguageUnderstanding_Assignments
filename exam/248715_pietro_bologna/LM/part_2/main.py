@@ -26,8 +26,8 @@ SGD = True
 ADAM = False
 
 WEIGHT_TYING = True
-VARIATIONAL_DROP = True
-ASGD = True
+VARIATIONAL_DROP = False
+ASGD = False
 
 # Hyperparameters
 SGD_LR = 5
@@ -87,10 +87,13 @@ def main():
         filename = f"{model._get_name()}.pt"
 
     # Optimizer
-    if ADAM:
+    if SGD and ADAM:
+        print("ERROR: select just one optimizer!")
+        exit()
+    elif ADAM:
         lr = ADAM_LR
         optimizer = optim.AdamW(model.parameters(), lr=lr)
-    else:
+    elif SGD:
         lr = SGD_LR
         optimizer = optim.SGD(model.parameters(), lr=lr)
 
@@ -145,14 +148,15 @@ def main():
                     # I switch to ASGD if the development loss has not improved over a defined number of epochs and if the loss of the current epoch is
                     # higher than the minimum loss from a specific number of previous epochs
 
-                    string = "Switching to [ASGD]"
+                    string = "[ASGD]"
                     optimizer = optim.ASGD(model.parameters(), lr=lr, t0=0, lambd=0.)
 
             # Early stopping
             if  ppl_dev < best_ppl:
                 best_ppl = ppl_dev
                 best_model = copy.deepcopy(model).to('cpu')
-                save_model(model=best_model, filename=filename)
+                # Save the model
+                # save_model(model=best_model, filename=filename)
                 patience = 3
             else:
                 patience -= 1
@@ -177,18 +181,10 @@ def main():
     array_ppl_dev.append(final_ppl)
     array_ppl_train.append(final_ppl)
 
-    # Save config and final_ppl to a CSV file
-    data = {'model': model.__class__.__name__, 'optimizer': optimizer.__class__.__name__, 'lr': SGD_LR if SGD else ADAM_LR, 'weight tying': WEIGHT_TYING, 'variational drop': VARIATIONAL_DROP, 'final_ppl': final_ppl}
-    csv_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results.csv")
-    with open(csv_file, 'a', newline='') as file:
-        writer = csv.DictWriter(file, fieldnames=data.keys())
-        writer.writeheader()
-        writer.writerow(data)
-
     # Plot the results
-    plot_graph(array_ppl_dev, array_ppl_train, array_loss_dev, array_loss_train, 
-               f"PPL: {model.__class__.__name__} with {optimizer.__class__.__name__}: {SGD_LR if SGD else ADAM_LR} --> {final_ppl}", 
-               f"LOSS: {model.__class__.__name__} with {optimizer.__class__.__name__}: {SGD_LR if SGD else ADAM_LR} --> {final_ppl}")
+    # plot_graph(array_ppl_dev, array_ppl_train, array_loss_dev, array_loss_train, 
+    #            f"PPL: {model.__class__.__name__} with {optimizer.__class__.__name__}: {SGD_LR if SGD else ADAM_LR} --> {final_ppl}", 
+    #            f"LOSS: {model.__class__.__name__} with {optimizer.__class__.__name__}: {SGD_LR if SGD else ADAM_LR} --> {final_ppl}")
 
 
 if __name__ == "__main__":
