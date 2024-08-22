@@ -156,7 +156,11 @@ def plot_graph(losses_dev, losses_train, filename):
 
 # Function used to save the model
 def save_model(epoch, model, optimizer, lang, filename):
-    PATH = os.path.join("exam/248715_pietro_bologna/NLU/part_2/bin", filename)
+    directory = "bin"
+    path = os.path.join(directory, filename)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+        
     saving_object = {
         'epoch': epoch,
         'model': model.state_dict(),
@@ -165,4 +169,4 @@ def save_model(epoch, model, optimizer, lang, filename):
         'slot2id': lang.slot2id,
         'intent2id': lang.intent2id
     }
-    torch.save(saving_object, PATH)
+    torch.save(saving_object, path)
