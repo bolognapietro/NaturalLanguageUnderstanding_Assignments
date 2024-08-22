@@ -123,5 +123,9 @@ def plot_graph(ppl_dev, ppl_train, losses_dev, losses_train, filename, filename1
 
 # Function used to save the model
 def save_model(model, filename):
-    PATH = os.path.join("bin", filename)
-    torch.save(model.state_dict(), PATH)
+    directory = "bin"
+    path = os.path.join(directory, filename)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+    torch.save(model.state_dict(), path)

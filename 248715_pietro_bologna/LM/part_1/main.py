@@ -19,9 +19,9 @@ EMB_SIZE = 300  # Embedding size
 N_EPOCHS = 100  # Number of epochs
 
 # Flags
-SGD = True
-ADAM = False
-DROP = False
+SGD = True      # SGD optimizer
+ADAM = False    # AdamW optimizer
+DROP = False    # Dropout
 
 # Hyperparameters
 SGD_LR = 5

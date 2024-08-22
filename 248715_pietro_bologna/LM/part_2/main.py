@@ -22,12 +22,12 @@ N_EPOCHS = 100  # Number of epochs
 NON_MONO = 3    # Number of epochs to wait before switching to ASGD
 
 # Flags
-SGD = True
-ADAM = False
+SGD = True      # SGD optimizer
+ADAM = False    # AdamW optimizer
 
-WEIGHT_TYING = True
-VARIATIONAL_DROP = False
-ASGD = False
+WEIGHT_TYING = True         # Weight tying
+VARIATIONAL_DROP = False    # Variational dropout
+ASGD = False                # ASGD optimizer    
 
 # Hyperparameters
 SGD_LR = 5
@@ -165,7 +165,7 @@ def main():
             array_loss_dev.append(loss_dev)
             losses_dev.append(np.asarray(loss_dev).mean())
 
-            pbar.set_description(string + " -> PPL: %f" % ppl_dev)
+            pbar.set_description(string + " PPL: %f" % ppl_dev)
             
             if patience <= 0:
                 break 
