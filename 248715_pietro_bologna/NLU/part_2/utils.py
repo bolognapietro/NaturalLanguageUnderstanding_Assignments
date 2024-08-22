@@ -32,6 +32,17 @@ class Lang():
         self.id2slot = {v:k for k, v in self.slot2id.items()}
         self.id2intent = {v:k for k, v in self.intent2id.items()}
     
+    # Converts a list of words into a dictionary mapping each word to a unique ID
+    def w2id(self, elements, cutoff=None, unk=True):
+        vocab = {'pad': PAD_TOKEN}
+        if unk:
+            vocab['unk'] = len(vocab)
+        count = Counter(elements)
+        for k, v in count.items():
+            if v > cutoff:
+                vocab[k] = len(vocab)
+        return vocab
+    
     # Converts a list of labels (for intents or slots) into a dictionary mapping each label to a unique ID
     def lab2id(self, elements, pad=True):
         vocab = {}
