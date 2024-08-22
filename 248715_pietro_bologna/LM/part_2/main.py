@@ -143,11 +143,9 @@ def main():
 
                 string = "[SDG]"
 
+                # Switch to ASGD if the development loss has not improved over a defined number of epochs and if the loss of the current epoch is
+                # higher than the minimum loss from a specific number of previous epochs
                 if ASGD and SGD and 't0' not in optimizer.param_groups[0]  and (len(array_loss_dev) > NON_MONO and loss_dev > min(array_loss_dev[:-NON_MONO])):
-                    
-                    # I switch to ASGD if the development loss has not improved over a defined number of epochs and if the loss of the current epoch is
-                    # higher than the minimum loss from a specific number of previous epochs
-
                     string = "[ASGD]"
                     optimizer = optim.ASGD(model.parameters(), lr=lr, t0=0, lambd=0.)
 
