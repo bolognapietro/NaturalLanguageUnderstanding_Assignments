@@ -1,6 +1,6 @@
 test_suite_analysis
 managed_context
-248715_pietro_bologna/LM/part_1/bin
-248715_pietro_bologna/LM/part_2/bin
-248715_pietro_bologna/NLU/part_1/bin
-248715_pietro_bologna/NLU/part_2/bin
+LM/part_1/bin
+LM/part_2/bin
+NLU/part_1/bin
+NLU/part_2/bin
